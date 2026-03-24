@@ -22,6 +22,11 @@ const updateProjectSchema = Joi.object({
   wp_api_url: Joi.string().uri(),
   wp_username: Joi.string().min(1).max(255),
   wp_app_password: Joi.string().min(1),
+  google_sheet_url: Joi.string().uri().allow('', null),
+  trigger_interval: Joi.string().valid('3h', '5h', '6h', '8h', '12h', 'disabled'),
+  trigger_enabled: Joi.boolean(),
+  content_categories: Joi.string().allow('', null),
+  content_authors: Joi.string().allow('', null),
 }).min(1).messages({
   'object.min': 'At least one field must be provided for update',
 });

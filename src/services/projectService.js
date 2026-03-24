@@ -8,6 +8,11 @@ async function create(userId, data) {
     wp_api_url: data.wp_api_url,
     wp_username: data.wp_username,
     wp_app_password: encrypt(data.wp_app_password),
+    google_sheet_url: data.google_sheet_url || null,
+    trigger_interval: data.trigger_interval || 'disabled',
+    trigger_enabled: data.trigger_enabled || false,
+    content_categories: data.content_categories || null,
+    content_authors: data.content_authors || null,
   });
 
   return sanitize(project);

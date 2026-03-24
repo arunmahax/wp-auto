@@ -15,6 +15,12 @@ export default function ProjectCard({ project, onDelete }) {
         </div>
         <div className="flex gap-2 ml-4">
           <Link
+            to={`/projects/${project.id}/settings`}
+            className="text-sm px-3 py-1 text-emerald-600 border border-emerald-200 rounded hover:bg-emerald-50"
+          >
+            Settings
+          </Link>
+          <Link
             to={`/projects/${project.id}/edit`}
             className="text-sm px-3 py-1 text-indigo-600 border border-indigo-200 rounded hover:bg-indigo-50"
           >

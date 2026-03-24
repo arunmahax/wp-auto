@@ -1,4 +1,5 @@
 const projectService = require('../services/projectService');
+const scheduler = require('../services/scheduler');
 
 async function create(req, res, next) {
   try {
@@ -30,6 +31,12 @@ async function getById(req, res, next) {
 async function update(req, res, next) {
   try {
     const project = await projectService.update(req.params.id, req.user.id, req.body);
+
+    // Re-register scheduler if trigger settings changed
+    if ('trigger_enabled' in req.body || 'trigger_interval' in req.body) {
+      scheduler.registerProject({ id: req.params.id, user_id: req.user.id, ...project });
+    }
+
     res.json(project);
   } catch (err) {
     next(err);
@@ -38,6 +45,7 @@ async function update(req, res, next) {
 
 async function remove(req, res, next) {
   try {
+    scheduler.unregisterProject(req.params.id);
     const result = await projectService.remove(req.params.id, req.user.id);
     res.json(result);
   } catch (err) {
