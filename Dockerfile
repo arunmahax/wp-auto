@@ -1,14 +1,17 @@
 # ── Build stage ─────────────────────────────────────────────
 FROM node:20-alpine AS builder
 
-# Native deps needed to compile sqlite3 (required by npm ci even when using Postgres)
+# Native deps needed to compile sqlite3
 RUN apk add --no-cache python3 make g++
+
+# Force development mode so npm ci installs devDependencies (vite, tailwind, etc.)
+ENV NODE_ENV=development
 
 WORKDIR /app
 
-# Install backend deps
+# Install ALL backend deps (including dev for build)
 COPY package.json package-lock.json* ./
-RUN npm ci --omit=dev
+RUN npm ci
 
 # Install frontend deps & build
 COPY client/package.json client/package-lock.json* ./client/
@@ -19,13 +22,16 @@ RUN cd client && npm run build
 # ── Production stage ───────────────────────────────────────
 FROM node:20-alpine
 
+# Native deps for sqlite3 runtime bindings
+RUN apk add --no-cache python3 make g++
+
 WORKDIR /app
 
-# Copy backend deps from builder
-COPY --from=builder /app/node_modules ./node_modules
+# Install ONLY production deps fresh (no devDependencies)
+COPY package.json package-lock.json* ./
+RUN npm ci --omit=dev && apk del python3 make g++
 
 # Copy backend source
-COPY package.json ./
 COPY server.js ./
 COPY src/ ./src/
 
