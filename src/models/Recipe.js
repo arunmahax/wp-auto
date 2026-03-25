@@ -15,6 +15,7 @@ const Recipe = sequelize.define('Recipe', {
     type: DataTypes.STRING(500),
     allowNull: false,
   },
+  // Source images from Google Sheet
   image1: {
     type: DataTypes.STRING(500),
     allowNull: true,
@@ -39,6 +40,22 @@ const Recipe = sequelize.define('Recipe', {
     type: DataTypes.TEXT,
     allowNull: true,
   },
+  // Pipeline step tracking
+  pipeline_step: {
+    type: DataTypes.STRING(30),
+    allowNull: true,
+  },
+  // TTAPI Midjourney images (4 images from 1 prompt)
+  mj_image1: { type: DataTypes.TEXT, allowNull: true },
+  mj_image2: { type: DataTypes.TEXT, allowNull: true },
+  mj_image3: { type: DataTypes.TEXT, allowNull: true },
+  mj_image4: { type: DataTypes.TEXT, allowNull: true },
+  // WordPress uploaded image URLs
+  wp_image1: { type: DataTypes.TEXT, allowNull: true },
+  wp_image2: { type: DataTypes.TEXT, allowNull: true },
+  wp_featured_image: { type: DataTypes.TEXT, allowNull: true },
+  wp_featured_media_id: { type: DataTypes.INTEGER, allowNull: true },
+  // Content Writer article
   article_job_id: {
     type: DataTypes.STRING(100),
     allowNull: true,
@@ -47,6 +64,15 @@ const Recipe = sequelize.define('Recipe', {
     type: DataTypes.TEXT,
     allowNull: true,
   },
+  // WordPress published article
+  wp_post_id: { type: DataTypes.INTEGER, allowNull: true },
+  published_url: { type: DataTypes.TEXT, allowNull: true },
+  // Pinterest pin
+  pin_image_url: { type: DataTypes.TEXT, allowNull: true },
+  pinterest_title: { type: DataTypes.TEXT, allowNull: true },
+  pinterest_description: { type: DataTypes.TEXT, allowNull: true },
+  pinterest_board: { type: DataTypes.STRING(255), allowNull: true },
+  // Legacy
   generated_image_url: {
     type: DataTypes.STRING(500),
     allowNull: true,

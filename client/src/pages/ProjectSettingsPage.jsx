@@ -16,10 +16,13 @@ export default function ProjectSettingsPage() {
     trigger_enabled: false,
     content_categories: '',
     content_authors: '',
+    image_prompt_template: '',
+    pin_design_config: '',
   });
 
   const [fetchingCats, setFetchingCats] = useState(false);
   const [fetchingBoards, setFetchingBoards] = useState(false);
+  const [fetchingAuthors, setFetchingAuthors] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [recipes, setRecipes] = useState([]);
   const [syncResult, setSyncResult] = useState(null);
@@ -38,6 +41,8 @@ export default function ProjectSettingsPage() {
           trigger_enabled: data.trigger_enabled || false,
           content_categories: data.content_categories || '',
           content_authors: data.content_authors || '',
+          image_prompt_template: data.image_prompt_template || '',
+          pin_design_config: data.pin_design_config || '',
         });
         setRecipes(recipesRes.data);
       })
@@ -60,6 +65,8 @@ export default function ProjectSettingsPage() {
       if (!payload.google_sheet_url) payload.google_sheet_url = null;
       if (!payload.content_categories) payload.content_categories = null;
       if (!payload.content_authors) payload.content_authors = null;
+      if (!payload.image_prompt_template) payload.image_prompt_template = null;
+      if (!payload.pin_design_config) payload.pin_design_config = null;
       const { data } = await client.put(`/projects/${id}`, payload);
       setProject(data);
       setSuccess('Settings saved successfully');
@@ -116,6 +123,20 @@ export default function ProjectSettingsPage() {
     }
   };
 
+  const handleFetchAuthors = async () => {
+    setFetchingAuthors(true);
+    setError('');
+    try {
+      const { data } = await client.post(`/projects/${id}/fetch-authors`);
+      setProject((prev) => ({ ...prev, wp_authors: JSON.stringify(data.authors) }));
+      setSuccess(`Fetched ${data.authors.length} authors`);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to fetch authors');
+    } finally {
+      setFetchingAuthors(false);
+    }
+  };
+
   const parseJson = (str) => {
     if (!str) return [];
     try { return JSON.parse(str); } catch { return []; }
@@ -126,6 +147,7 @@ export default function ProjectSettingsPage() {
 
   const categories = parseJson(project.wp_categories);
   const boards = parseJson(project.wp_pinboards);
+  const authors = parseJson(project.wp_authors);
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -203,6 +225,44 @@ export default function ProjectSettingsPage() {
           </div>
         </section>
 
+        {/* Image Prompt Template */}
+        <section className="bg-white rounded-lg border border-gray-200 p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-1">Image Generation Prompt</h2>
+          <p className="text-xs text-gray-400 mb-4">
+            Midjourney prompt template. Use <code className="bg-gray-100 px-1 rounded text-gray-600">{'{title}'}</code> for the recipe name
+            and <code className="bg-gray-100 px-1 rounded text-gray-600">{'{image}'}</code> for the spy reference image URL from the sheet.
+          </p>
+          <div>
+            <label htmlFor="image_prompt_template" className="block text-sm font-medium text-gray-700 mb-1">Prompt Template</label>
+            <textarea id="image_prompt_template" name="image_prompt_template" value={form.image_prompt_template} onChange={handleChange}
+              rows={3}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono text-sm"
+              placeholder="{image} {title}, food photography, professional, high quality, appetizing, 4k --ar 16:9"
+            />
+            <p className="text-xs text-gray-400 mt-1">Leave blank to use the default prompt shown above.</p>
+          </div>
+        </section>
+
+        {/* Pin Design Config */}
+        <section className="bg-white rounded-lg border border-gray-200 p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-1">Pin Design Config</h2>
+          <p className="text-xs text-gray-400 mb-4">
+            JSON configuration sent to the Pin Designer service. Controls text styling, layout, fonts, colors, etc.
+            The <code className="bg-gray-100 px-1 rounded text-gray-600">topImageUrl</code>,{' '}
+            <code className="bg-gray-100 px-1 rounded text-gray-600">bottomImageUrl</code>, and{' '}
+            <code className="bg-gray-100 px-1 rounded text-gray-600">recipeTitle</code> are set automatically from the pipeline.
+          </p>
+          <div>
+            <label htmlFor="pin_design_config" className="block text-sm font-medium text-gray-700 mb-1">Design JSON</label>
+            <textarea id="pin_design_config" name="pin_design_config" value={form.pin_design_config} onChange={handleChange}
+              rows={12}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono text-xs"
+              placeholder='{&#10;  "smartLayoutOptions": { "line1FontSize": 70 },&#10;  "textOptions": { "fontFamily": "Comic Sans MS", "fontSize": 80 },&#10;  "topTags": []&#10;}'
+            />
+            <p className="text-xs text-gray-400 mt-1">Leave blank to use Pin Designer defaults. Must be valid JSON.</p>
+          </div>
+        </section>
+
         <button type="submit" disabled={saving}
           className="w-full py-2 px-4 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50 cursor-pointer">
           {saving ? 'Saving...' : 'Save Settings'}
@@ -268,6 +328,37 @@ export default function ProjectSettingsPage() {
           </div>
         ) : (
           <p className="text-sm text-gray-400">No boards fetched yet. Click "Fetch Boards" to pull from the Pinboards plugin.</p>
+        )}
+      </section>
+
+      {/* Authors */}
+      <section className="bg-white rounded-lg border border-gray-200 p-6 mt-6">
+        <div className="flex justify-between items-center mb-3">
+          <h2 className="text-lg font-semibold text-gray-900">WordPress Authors</h2>
+          <button onClick={handleFetchAuthors} disabled={fetchingAuthors}
+            className="px-3 py-1.5 text-sm bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 disabled:opacity-50 cursor-pointer">
+            {fetchingAuthors ? 'Fetching...' : 'Fetch Authors'}
+          </button>
+        </div>
+        {authors.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-sm">
+              <thead><tr className="border-b border-gray-200 text-left text-gray-500">
+                <th className="py-2 pr-4">ID</th><th className="py-2 pr-4">Name</th><th className="py-2">Slug</th>
+              </tr></thead>
+              <tbody>
+                {authors.map((a) => (
+                  <tr key={a.id} className="border-b border-gray-50">
+                    <td className="py-1.5 pr-4 text-gray-500">{a.id}</td>
+                    <td className="py-1.5 pr-4 text-gray-900">{a.name}</td>
+                    <td className="py-1.5 text-gray-500">{a.slug}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="text-sm text-gray-400">No authors fetched yet. Click "Fetch Authors" to pull from WordPress.</p>
         )}
       </section>
 

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import client from '../api/client';
 import JobStatusBadge from '../components/JobStatusBadge';
+import PipelineTracker from '../components/PipelineTracker';
 import ConfirmDialog from '../components/ConfirmDialog';
 
 export default function ProjectDetailPage() {
@@ -11,15 +12,13 @@ export default function ProjectDetailPage() {
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-
-  // Job form
-  const [jobType, setJobType] = useState('');
-  const [jobDesc, setJobDesc] = useState('');
   const [jobLoading, setJobLoading] = useState(false);
+  const [expandedJob, setExpandedJob] = useState(null);
 
   // Delete state
   const [deleteProject, setDeleteProject] = useState(false);
   const [deleteJobTarget, setDeleteJobTarget] = useState(null);
+  const [retryingId, setRetryingId] = useState(null);
 
   const fetchData = async () => {
     try {
@@ -38,20 +37,18 @@ export default function ProjectDetailPage() {
 
   useEffect(() => { fetchData(); }, [id]);
 
-  const handleCreateJob = async (e) => {
-    e.preventDefault();
-    if (!jobType.trim()) return;
+  const handleRunPipeline = async () => {
     setJobLoading(true);
+    setError('');
     try {
       const { data } = await client.post(`/projects/${id}/jobs`, {
-        type: jobType.trim(),
-        description: jobDesc.trim() || undefined,
+        type: 'pipeline',
+        description: 'Full recipe pipeline',
       });
-      setJobs((prev) => [...prev, data]);
-      setJobType('');
-      setJobDesc('');
+      setJobs((prev) => [data, ...prev]);
+      setExpandedJob(data.id);
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to create job');
+      setError(err.response?.data?.error || 'Failed to start pipeline');
     } finally {
       setJobLoading(false);
     }
@@ -78,6 +75,19 @@ export default function ProjectDetailPage() {
     setDeleteJobTarget(null);
   };
 
+  const handleRetryJob = async (job) => {
+    setRetryingId(job.id);
+    setError('');
+    try {
+      await client.post(`/projects/${id}/jobs/${job.id}/retry`);
+      await fetchData();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Retry failed');
+    } finally {
+      setRetryingId(null);
+    }
+  };
+
   if (loading) {
     return <div className="text-center py-12 text-gray-500">Loading...</div>;
   }
@@ -85,6 +95,8 @@ export default function ProjectDetailPage() {
   if (!project) {
     return <div className="text-center py-12 text-red-500">Project not found</div>;
   }
+
+  const hasRunningJob = jobs.some((j) => j.status === 'pending' || j.status === 'running');
 
   return (
     <div>
@@ -142,71 +154,89 @@ export default function ProjectDetailPage() {
         </dl>
       </div>
 
-      {/* Jobs Section */}
+      {/* Pipeline Section */}
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-semibold text-gray-900">Jobs</h2>
+        <h2 className="text-xl font-semibold text-gray-900">Pipeline Jobs</h2>
+        <button
+          onClick={handleRunPipeline}
+          disabled={jobLoading || hasRunningJob}
+          className="px-4 py-2 text-sm bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50 cursor-pointer flex items-center gap-2"
+        >
+          {jobLoading ? (
+            <>
+              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+              Starting...
+            </>
+          ) : (
+            <>▶ Run Pipeline</>
+          )}
+        </button>
       </div>
 
-      {/* New Job Form */}
-      <form onSubmit={handleCreateJob} className="bg-white rounded-lg border border-gray-200 p-4 mb-4 flex flex-wrap gap-3 items-end">
-        <div className="flex-1 min-w-[150px]">
-          <label htmlFor="jobType" className="block text-xs font-medium text-gray-600 mb-1">Type</label>
-          <input
-            id="jobType"
-            value={jobType}
-            onChange={(e) => setJobType(e.target.value)}
-            className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            placeholder="e.g. content_generation"
-          />
+      {hasRunningJob && (
+        <div className="mb-3 px-3 py-2 bg-blue-50 border border-blue-200 rounded-md text-xs text-blue-700">
+          A pipeline is currently running. Wait for it to finish before starting another.
         </div>
-        <div className="flex-1 min-w-[150px]">
-          <label htmlFor="jobDesc" className="block text-xs font-medium text-gray-600 mb-1">Description (optional)</label>
-          <input
-            id="jobDesc"
-            value={jobDesc}
-            onChange={(e) => setJobDesc(e.target.value)}
-            className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            placeholder="Brief description"
-          />
-        </div>
-        <button
-          type="submit"
-          disabled={jobLoading || !jobType.trim()}
-          className="px-4 py-1.5 text-sm bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50 cursor-pointer"
-        >
-          {jobLoading ? 'Adding...' : 'Add Job'}
-        </button>
-      </form>
+      )}
 
       {/* Jobs List */}
       {jobs.length === 0 ? (
         <div className="text-center py-10 bg-white rounded-lg border border-gray-200 text-gray-500 text-sm">
-          No jobs yet. Create one above to get started.
+          No pipeline jobs yet. Click "Run Pipeline" to process the next recipe.
         </div>
       ) : (
-        <div className="bg-white rounded-lg border border-gray-200 divide-y divide-gray-100">
+        <div className="space-y-3">
           {jobs.map((job) => (
-            <div key={job.id} className="p-4 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <JobStatusBadge status={job.status} />
-                <div>
-                  <span className="text-sm font-medium text-gray-900">{job.type}</span>
-                  {job.description && (
-                    <p className="text-xs text-gray-500 mt-0.5">{job.description}</p>
+            <div key={job.id} className="bg-white rounded-lg border border-gray-200">
+              <div
+                className="p-4 flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors"
+                onClick={() => setExpandedJob(expandedJob === job.id ? null : job.id)}
+              >
+                <div className="flex items-center gap-3">
+                  <JobStatusBadge status={job.status} />
+                  <div>
+                    <span className="text-sm font-medium text-gray-900">
+                      {job.description || job.type}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-gray-400">
+                    {new Date(job.createdAt).toLocaleString()}
+                  </span>
+                  {job.status === 'failed' && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleRetryJob(job); }}
+                      disabled={retryingId === job.id}
+                      className="px-2.5 py-1 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded hover:bg-amber-100 disabled:opacity-50 cursor-pointer"
+                    >
+                      {retryingId === job.id ? '...' : '↻ Retry'}
+                    </button>
                   )}
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setDeleteJobTarget(job); }}
+                    className="text-xs text-red-500 hover:text-red-700 cursor-pointer"
+                  >
+                    Delete
+                  </button>
+                  <span className="text-gray-400 text-xs">
+                    {expandedJob === job.id ? '▲' : '▼'}
+                  </span>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
-                <span className="text-xs text-gray-400">
-                  {new Date(job.createdAt).toLocaleString()}
-                </span>
-                <button
-                  onClick={() => setDeleteJobTarget(job)}
-                  className="text-xs text-red-500 hover:text-red-700 cursor-pointer"
-                >
-                  Delete
-                </button>
-              </div>
+
+              {expandedJob === job.id && (
+                <div className="px-4 pb-4">
+                  <PipelineTracker
+                    projectId={id}
+                    job={job}
+                    onUpdate={fetchData}
+                  />
+                </div>
+              )}
             </div>
           ))}
         </div>

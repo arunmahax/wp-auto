@@ -18,4 +18,13 @@ async function fetchBoards(req, res, next) {
   }
 }
 
-module.exports = { fetchCategories, fetchBoards };
+async function fetchAuthors(req, res, next) {
+  try {
+    const authors = await wpFetchService.fetchAuthors(req.params.id, req.user.id);
+    res.json({ authors });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { fetchCategories, fetchBoards, fetchAuthors };

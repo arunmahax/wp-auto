@@ -12,6 +12,7 @@ Project.belongsTo(User, { foreignKey: 'user_id' });
 
 Project.hasMany(Job, { foreignKey: 'project_id', onDelete: 'CASCADE' });
 Job.belongsTo(Project, { foreignKey: 'project_id' });
+Job.belongsTo(Recipe, { foreignKey: 'recipe_id' });
 
 User.hasOne(UserSettings, { foreignKey: 'user_id', onDelete: 'CASCADE' });
 UserSettings.belongsTo(User, { foreignKey: 'user_id' });

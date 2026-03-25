@@ -22,6 +22,7 @@ export default function SettingsPage() {
           ttapi_api_key_set: data.ttapi_api_key_set,
           content_api_key_set: data.content_api_key_set,
           pin_generator_key_set: data.pin_generator_key_set,
+          pinboards_jwt_token_set: data.pinboards_jwt_token_set,
         });
         setForm({
           ttapi_api_key: '',
@@ -29,6 +30,7 @@ export default function SettingsPage() {
           content_api_key: '',
           pin_generator_url: data.pin_generator_url || '',
           pin_generator_key: '',
+          pinboards_jwt_token: '',
         });
       })
       .catch(() => {})

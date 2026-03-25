@@ -1,7 +1,7 @@
 const axios = require('axios');
 
 const POLL_INTERVAL = 5000;
-const POLL_TIMEOUT = 120000;
+const POLL_TIMEOUT = 300000;
 
 /**
  * Submit a recipe generation job and poll until complete.
@@ -42,15 +42,16 @@ async function generateRecipe({ baseUrl, apiKey, title, image1, image2, featured
   while (Date.now() - start < POLL_TIMEOUT) {
     await sleep(POLL_INTERVAL);
 
-    const { data: status } = await client.get(`/api/job-status/${jobId}`);
+    const { data: statusRes } = await client.get(`/api/job-status/${jobId}`);
+    const jobStatus = statusRes.job?.status || statusRes.status;
 
-    if (status.status === 'completed' || status.status === 'done') {
+    if (jobStatus === 'completed' || jobStatus === 'done') {
       const { data: result } = await client.get(`/api/job-result/${jobId}`);
       return { jobId, result };
     }
 
-    if (status.status === 'failed' || status.status === 'error') {
-      throw new Error(`Content Writer job failed: ${status.error || 'unknown error'}`);
+    if (jobStatus === 'failed' || jobStatus === 'error') {
+      throw new Error(`Content Writer job failed: ${statusRes.job?.errorLog || statusRes.error || 'unknown error'}`);
     }
   }
 

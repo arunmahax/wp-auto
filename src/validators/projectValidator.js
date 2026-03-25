@@ -27,6 +27,8 @@ const updateProjectSchema = Joi.object({
   trigger_enabled: Joi.boolean(),
   content_categories: Joi.string().allow('', null),
   content_authors: Joi.string().allow('', null),
+  image_prompt_template: Joi.string().allow('', null).max(1000),
+  pin_design_config: Joi.string().allow('', null).max(5000),
 }).min(1).messages({
   'object.min': 'At least one field must be provided for update',
 });

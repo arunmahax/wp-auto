@@ -53,11 +53,23 @@ const Project = sequelize.define('Project', {
     type: DataTypes.TEXT,
     allowNull: true,
   },
+  wp_authors: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+  },
   content_categories: {
     type: DataTypes.TEXT,
     allowNull: true,
   },
   content_authors: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+  },
+  image_prompt_template: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+  },
+  pin_design_config: {
     type: DataTypes.TEXT,
     allowNull: true,
   },

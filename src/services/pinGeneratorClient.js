@@ -1,33 +1,49 @@
 const axios = require('axios');
 
 /**
- * Create a Pinterest pin image via the Pin Generator service.
+ * Create a Pinterest pin image via the Pin Designer service.
+ * Composites two images with a title text overlay into a 9:16 pin.
  *
  * @param {Object} opts
- * @param {string} opts.baseUrl - Pin Generator base URL
- * @param {string} opts.apiKey - API key (optional, may be empty)
- * @param {string} opts.topImageUrl - Top image URL
- * @param {string} opts.bottomImageUrl - Bottom image URL
- * @param {string} opts.recipeTitle - Recipe title for the pin text
- * @param {Object} [opts.styleOverrides] - Optional style overrides
+ * @param {string} opts.baseUrl - Pin Designer base URL
+ * @param {string} opts.apiKey - API key (optional)
+ * @param {string} opts.topImageUrl - Top image URL (recipe photo)
+ * @param {string} opts.bottomImageUrl - Bottom image URL (second recipe photo)
+ * @param {string} opts.recipeTitle - Recipe title for text overlay
  * @returns {Promise<Object>} { pinImageUrl }
  */
-async function createPin({ baseUrl, apiKey, topImageUrl, bottomImageUrl, recipeTitle, styleOverrides }) {
+async function createPin({ baseUrl, apiKey, topImageUrl, bottomImageUrl, recipeTitle, designConfig }) {
   const headers = { 'Content-Type': 'application/json' };
   if (apiKey) headers['x-api-key'] = apiKey;
 
-  const { data } = await axios.post(`${baseUrl}/api/create-pin`, {
+  // Build request body: start with design config, then overlay dynamic fields
+  let body = {
     topImageUrl,
     bottomImageUrl,
     recipeTitle,
-    styleOverrides: styleOverrides || undefined,
-  }, {
+  };
+
+  if (designConfig) {
+    try {
+      const config = typeof designConfig === 'string' ? JSON.parse(designConfig) : designConfig;
+      body = { ...body, ...config };
+    } catch (e) {
+      console.error('[PinGenerator] Invalid pin_design_config JSON, using defaults:', e.message);
+    }
+  }
+
+  // Always override dynamic fields
+  body.topImageUrl = topImageUrl;
+  body.bottomImageUrl = bottomImageUrl;
+  body.recipeTitle = recipeTitle;
+
+  const { data } = await axios.post(`${baseUrl}/api/create-pin`, body, {
     headers,
     timeout: 60000,
   });
 
-  const pinImageUrl = data.pinImageUrl || data.url || data.imageUrl;
-  if (!pinImageUrl) throw new Error('Pin Generator did not return an image URL');
+  const pinImageUrl = data.pinImageUrl || data.imageUrl || data.url;
+  if (!pinImageUrl) throw new Error('Pin Designer did not return an image URL');
 
   return { pinImageUrl };
 }

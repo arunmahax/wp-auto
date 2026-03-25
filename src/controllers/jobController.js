@@ -27,6 +27,15 @@ async function getById(req, res, next) {
   }
 }
 
+async function retry(req, res, next) {
+  try {
+    const job = await jobService.retry(req.params.projectId, req.params.jobId, req.user.id);
+    res.json(job);
+  } catch (err) {
+    next(err);
+  }
+}
+
 async function remove(req, res, next) {
   try {
     const result = await jobService.remove(req.params.projectId, req.params.jobId, req.user.id);
@@ -36,4 +45,4 @@ async function remove(req, res, next) {
   }
 }
 
-module.exports = { create, list, getById, remove };
+module.exports = { create, list, getById, retry, remove };

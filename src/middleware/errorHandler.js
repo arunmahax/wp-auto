@@ -22,8 +22,16 @@ function errorHandler(err, req, res, next) {
     });
   }
 
+  // Axios errors from external API calls
+  if (err.isAxiosError) {
+    const msg = err.code === 'ETIMEDOUT' || err.code === 'ECONNABORTED'
+      ? 'External service timed out — please try again'
+      : `External service error: ${err.response?.status || err.code || 'unknown'}`;
+    return res.status(502).json({ error: msg });
+  }
+
   // Default 500
-  console.error('Unhandled error:', err);
+  console.error('Unhandled error:', err.message);
   res.status(500).json({
     error: 'Internal server error',
   });

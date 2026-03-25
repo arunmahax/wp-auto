@@ -44,6 +44,26 @@ async function fetchBoards(projectId, userId) {
   return boards;
 }
 
+async function fetchAuthors(projectId, userId) {
+  const project = await getProjectWithCreds(projectId, userId);
+  const wpBase = getWpBase(project.wp_api_url);
+
+  const { data } = await axios.get(`${wpBase}/wp-json/wp/v2/users`, {
+    params: { per_page: 100 },
+    headers: buildAuthHeader(project),
+    timeout: 15000,
+  });
+
+  const authors = data.map((u) => ({
+    id: u.id,
+    name: u.name,
+    slug: u.slug,
+  }));
+
+  await project.update({ wp_authors: JSON.stringify(authors) });
+  return authors;
+}
+
 async function getProjectWithCreds(projectId, userId) {
   const project = await Project.findByPk(projectId);
   if (!project) {
@@ -73,4 +93,4 @@ function buildAuthHeader(project) {
   return { Authorization: `Basic ${token}` };
 }
 
-module.exports = { fetchCategories, fetchBoards };
+module.exports = { fetchCategories, fetchBoards, fetchAuthors };

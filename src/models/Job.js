@@ -1,7 +1,6 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
 
-// Placeholder — fully implemented in Phase 5 (US3)
 const Job = sequelize.define('Job', {
   id: {
     type: DataTypes.UUID,
@@ -27,6 +26,22 @@ const Job = sequelize.define('Job', {
     validate: {
       isIn: [['pending', 'running', 'completed', 'failed']],
     },
+  },
+  recipe_id: {
+    type: DataTypes.UUID,
+    allowNull: true,
+  },
+  pipeline_step: {
+    type: DataTypes.STRING(30),
+    allowNull: true,
+  },
+  error_message: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+  },
+  result_data: {
+    type: DataTypes.TEXT,
+    allowNull: true,
   },
 }, {
   tableName: 'jobs',

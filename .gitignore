@@ -2,3 +2,11 @@ node_modules/
 .env
 *.sqlite
 database.sqlite
+client/dist/
+
+# Temp debug/test scripts
+diagnose-format.js
+fix-republish.js
+reset-recipes.js
+test-pipeline.js
+start.bat

@@ -36,13 +36,40 @@ async function fetchSheetRows(sheetUrl) {
     trim: true,
   });
 
+  if (records.length === 0) return [];
+
+  // Flexible column mapping — find the right column by checking common names
+  const headers = Object.keys(records[0]);
+  const titleCol = findColumn(headers, ['title', 'spy title', 'recipe title', 'name', 'recipe name']);
+  const image1Col = findColumn(headers, ['image1', 'spy image url', 'image url', 'image', 'img1', 'spy image']);
+  const image2Col = findColumn(headers, ['image2', 'images', 'image 2', 'img2', 'second image']);
+
+  if (!titleCol) {
+    throw Object.assign(
+      new Error(`No title column found. Sheet headers: ${headers.join(', ')}`),
+      { status: 400 }
+    );
+  }
+
   return records
-    .filter((r) => r.title && r.title.trim())
+    .filter((r) => r[titleCol] && r[titleCol].trim())
     .map((r) => ({
-      title: r.title.trim(),
-      image1: (r.image1 || '').trim() || null,
-      image2: (r.image2 || '').trim() || null,
+      title: r[titleCol].trim(),
+      image1: image1Col ? (r[image1Col] || '').trim() || null : null,
+      image2: image2Col ? (r[image2Col] || '').trim() || null : null,
     }));
+}
+
+/**
+ * Find a column header by checking against a list of common names (case-insensitive).
+ */
+function findColumn(headers, candidates) {
+  const lower = headers.map((h) => h.toLowerCase().trim());
+  for (const candidate of candidates) {
+    const idx = lower.indexOf(candidate.toLowerCase());
+    if (idx !== -1) return headers[idx];
+  }
+  return null;
 }
 
 /**
