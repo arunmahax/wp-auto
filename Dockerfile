@@ -1,6 +1,9 @@
 # ── Build stage ─────────────────────────────────────────────
 FROM node:20-alpine AS builder
 
+# Native deps needed to compile sqlite3 (required by npm ci even when using Postgres)
+RUN apk add --no-cache python3 make g++
+
 WORKDIR /app
 
 # Install backend deps
