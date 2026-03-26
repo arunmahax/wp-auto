@@ -417,7 +417,11 @@ export default function ProjectDetailPage() {
 function RecipeModal({ recipe, onClose, onRun, runningRecipeId }) {
   const canRun = recipe.status === 'new' || recipe.status === 'failed';
   const isRunning = runningRecipeId === recipe.id;
-  const mjImages = [recipe.mj_image1, recipe.mj_image2, recipe.mj_image3, recipe.mj_image4].filter(Boolean);
+  const wpImages = [
+    { url: recipe.wp_image1, label: 'WP Image 1' },
+    { url: recipe.wp_image2, label: 'WP Image 2' },
+    { url: recipe.wp_featured_image, label: 'Featured Image' },
+  ].filter(i => i.url);
 
   useEffect(() => {
     const handleEsc = (e) => { if (e.key === 'Escape') onClose(); };
@@ -483,26 +487,29 @@ function RecipeModal({ recipe, onClose, onRun, runningRecipeId }) {
             </div>
           )}
 
-          {/* Generated Images — large */}
-          {(mjImages.length > 0 || recipe.pin_image_url) && (
+          {/* WordPress Images */}
+          {wpImages.length > 0 && (
             <div>
-              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Generated Images</h3>
+              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">WordPress Images</h3>
               <div className="grid grid-cols-2 gap-3">
-                {mjImages.map((img, i) => (
+                {wpImages.map((img, i) => (
                   <div key={i} className="relative group rounded-xl overflow-hidden border border-gray-200 bg-gray-50">
-                    <img src={img} alt={`Midjourney ${i + 1}`} className="w-full h-48 object-cover" />
-                    <span className="absolute top-2 left-2 bg-black/60 text-white text-[10px] font-bold px-2 py-0.5 rounded-md">MJ {i + 1}</span>
+                    <img src={img.url} alt={img.label} className="w-full h-48 object-cover" />
+                    <span className="absolute top-2 left-2 bg-black/60 text-white text-[10px] font-bold px-2 py-0.5 rounded-md">{img.label}</span>
                   </div>
                 ))}
               </div>
-              {recipe.pin_image_url && (
-                <div className="mt-3">
-                  <div className="relative inline-block rounded-xl overflow-hidden border-2 border-purple-200 bg-purple-50">
-                    <img src={recipe.pin_image_url} alt="Pinterest Pin" className="h-64 w-auto object-contain" />
-                    <span className="absolute top-2 left-2 bg-purple-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-md">PIN</span>
-                  </div>
-                </div>
-              )}
+            </div>
+          )}
+
+          {/* Pinterest Pin Design */}
+          {recipe.pin_image_url && (
+            <div>
+              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Pinterest Pin</h3>
+              <div className="relative inline-block rounded-xl overflow-hidden border-2 border-purple-200 bg-purple-50">
+                <img src={recipe.pin_image_url} alt="Pinterest Pin" className="h-72 w-auto object-contain" />
+                <span className="absolute top-2 left-2 bg-purple-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-md">PIN</span>
+              </div>
             </div>
           )}
 
