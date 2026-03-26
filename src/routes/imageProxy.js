@@ -27,9 +27,10 @@ router.get('/', async (req, res) => {
     return res.status(400).json({ error: 'Invalid URL encoding' });
   }
 
-  // Whitelist trusted domains
+  // Whitelist trusted domains (user's WordPress sites + image CDNs)
   const trustedDomains = [
     'recipecia.com',
+    'tastetrend.net',
     'cdn.ttapi.io',
     'pindesigner.productugc.com',
     'i.ibb.co',
