@@ -416,6 +416,14 @@ export default function ProjectDetailPage() {
 /* ── Image with loading/error state ── */
 function ImageWithFallback({ src, alt, className, labelText, labelColor = 'bg-black/60' }) {
   const [status, setStatus] = useState('loading');
+  const imgRef = useRef(null);
+  
+  // Handle cached images - onLoad may not fire if image is already cached
+  useEffect(() => {
+    if (imgRef.current?.complete && imgRef.current?.naturalWidth > 0) {
+      setStatus('loaded');
+    }
+  }, [src]);
   
   if (!src) return null;
   
@@ -438,8 +446,10 @@ function ImageWithFallback({ src, alt, className, labelText, labelColor = 'bg-bl
         </div>
       )}
       <img 
+        ref={imgRef}
         src={src} 
         alt={alt} 
+        referrerPolicy="no-referrer"
         className={`w-full h-full object-cover transition-opacity ${status === 'loaded' ? 'opacity-100' : 'opacity-0'}`}
         onLoad={() => setStatus('loaded')}
         onError={() => setStatus('error')}
