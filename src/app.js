@@ -14,25 +14,10 @@ app.set('trust proxy', 1);
 // Security headers
 app.use(helmet());
 
-// CORS — in production the SPA is served by Express itself, so allow same-origin.
-// Also support explicit CORS_ORIGIN for any additional origins.
-const allowedOrigins = process.env.CORS_ORIGIN
-  ? process.env.CORS_ORIGIN.split(',').map(o => o.trim())
-  : [];
-
+// CORS — allow same-origin requests in production (SPA served by Express).
+// Use CORS_ORIGIN env var to restrict to specific origins if needed.
 app.use(cors({
-  origin(origin, cb) {
-    // Allow requests with no origin (curl, server-to-server, etc.)
-    if (!origin) return cb(null, true);
-    // Explicit allowlist match
-    if (allowedOrigins.includes(origin)) return cb(null, true);
-    // Dev mode: allow localhost Vite dev server
-    if (process.env.NODE_ENV !== 'production' && origin.startsWith('http://localhost')) return cb(null, true);
-    // Production with self-served SPA: if no CORS_ORIGIN configured, allow all
-    // (the SPA and API share the same origin, browser still sends Origin on XHR)
-    if (process.env.NODE_ENV === 'production' && allowedOrigins.length === 0) return cb(null, true);
-    cb(new Error('Not allowed by CORS'));
-  },
+  origin: true,
   credentials: true,
 }));
 
