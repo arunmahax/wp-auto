@@ -342,6 +342,10 @@ async function processNextRecipe(projectId, userId, jobId = null) {
           wpClient, pinImageUrl, `${slug}-pin.jpg`, recipe.title,
         );
 
+        // Save the WordPress-hosted pin image URL
+        await recipe.update({ wp_pin_image: pinMedia.url });
+        console.log(`[Scheduler] Step 6: Pin uploaded to WordPress: ${pinMedia.url}`);
+
         // Fetch boards from Pinboards plugin and match by keywords
         const boards = await wpPublishService.fetchPinboards(wpClient);
         const board = wpPublishService.matchBoard(boards, recipe.title);

@@ -69,6 +69,7 @@ const Recipe = sequelize.define('Recipe', {
   published_url: { type: DataTypes.TEXT, allowNull: true },
   // Pinterest pin
   pin_image_url: { type: DataTypes.TEXT, allowNull: true },
+  wp_pin_image: { type: DataTypes.TEXT, allowNull: true }, // Pin hosted on WordPress
   pinterest_title: { type: DataTypes.TEXT, allowNull: true },
   pinterest_description: { type: DataTypes.TEXT, allowNull: true },
   pinterest_board: { type: DataTypes.STRING(255), allowNull: true },

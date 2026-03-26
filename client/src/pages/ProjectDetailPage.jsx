@@ -413,14 +413,69 @@ export default function ProjectDetailPage() {
   );
 }
 
+/* ── Image with loading/error state ── */
+function ImageWithFallback({ src, alt, className, labelText, labelColor = 'bg-black/60' }) {
+  const [status, setStatus] = useState('loading');
+  
+  if (!src) return null;
+  
+  return (
+    <div className={`relative group rounded-xl overflow-hidden border border-gray-200 bg-gray-100 ${className || ''}`}>
+      {status === 'loading' && (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <svg className="animate-spin h-6 w-6 text-gray-400" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+          </svg>
+        </div>
+      )}
+      {status === 'error' && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-400">
+          <svg className="w-8 h-8 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+          </svg>
+          <span className="text-xs">Failed to load</span>
+        </div>
+      )}
+      <img 
+        src={src} 
+        alt={alt} 
+        className={`w-full h-full object-cover transition-opacity ${status === 'loaded' ? 'opacity-100' : 'opacity-0'}`}
+        onLoad={() => setStatus('loaded')}
+        onError={() => setStatus('error')}
+      />
+      {labelText && (
+        <span className={`absolute top-2 left-2 ${labelColor} text-white text-[10px] font-bold px-2 py-0.5 rounded-md shadow-sm`}>
+          {labelText}
+        </span>
+      )}
+      {status === 'loaded' && (
+        <a 
+          href={src} 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="absolute inset-0 bg-black/0 hover:bg-black/20 transition-colors flex items-center justify-center opacity-0 hover:opacity-100"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <span className="bg-white/90 text-gray-700 text-xs font-medium px-3 py-1.5 rounded-lg shadow">Open Full Size</span>
+        </a>
+      )}
+    </div>
+  );
+}
+
 /* ── Recipe Detail Modal ── */
 function RecipeModal({ recipe, onClose, onRun, runningRecipeId }) {
   const canRun = recipe.status === 'new' || recipe.status === 'failed';
   const isRunning = runningRecipeId === recipe.id;
+  
+  // Prefer WordPress-hosted pin image, fallback to pindesigner URL
+  const pinImage = recipe.wp_pin_image || recipe.pin_image_url;
+  
   const wpImages = [
-    { url: recipe.wp_image1, label: 'WP Image 1' },
-    { url: recipe.wp_image2, label: 'WP Image 2' },
-    { url: recipe.wp_featured_image, label: 'Featured Image' },
+    { url: recipe.wp_image1, label: 'Image 1' },
+    { url: recipe.wp_image2, label: 'Image 2' },
+    { url: recipe.wp_featured_image, label: 'Featured' },
   ].filter(i => i.url);
 
   useEffect(() => {
@@ -490,26 +545,33 @@ function RecipeModal({ recipe, onClose, onRun, runningRecipeId }) {
           {/* WordPress Images */}
           {wpImages.length > 0 && (
             <div>
-              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">WordPress Images</h3>
-              <div className="grid grid-cols-2 gap-3">
+              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Blog Images</h3>
+              <div className="grid grid-cols-3 gap-3">
                 {wpImages.map((img, i) => (
-                  <div key={i} className="relative group rounded-xl overflow-hidden border border-gray-200 bg-gray-50">
-                    <img src={img.url} alt={img.label} className="w-full h-48 object-cover" />
-                    <span className="absolute top-2 left-2 bg-black/60 text-white text-[10px] font-bold px-2 py-0.5 rounded-md">{img.label}</span>
-                  </div>
+                  <ImageWithFallback
+                    key={i}
+                    src={img.url}
+                    alt={img.label}
+                    className="h-36"
+                    labelText={img.label}
+                    labelColor="bg-indigo-600"
+                  />
                 ))}
               </div>
             </div>
           )}
 
           {/* Pinterest Pin Design */}
-          {recipe.pin_image_url && (
+          {pinImage && (
             <div>
               <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Pinterest Pin</h3>
-              <div className="relative inline-block rounded-xl overflow-hidden border-2 border-purple-200 bg-purple-50">
-                <img src={recipe.pin_image_url} alt="Pinterest Pin" className="h-72 w-auto object-contain" />
-                <span className="absolute top-2 left-2 bg-purple-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-md">PIN</span>
-              </div>
+              <ImageWithFallback
+                src={pinImage}
+                alt="Pinterest Pin"
+                className="h-80 w-auto inline-block border-2 border-purple-200"
+                labelText="PIN"
+                labelColor="bg-purple-600"
+              />
             </div>
           )}
 
