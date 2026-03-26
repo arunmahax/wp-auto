@@ -25,6 +25,83 @@ router.post('/:id/fetch-authors', wpFetchController.fetchAuthors);
 router.post('/:id/sync-sheet', sheetController.syncSheet);
 router.get('/:id/recipes', sheetController.listRecipes);
 
+// Project stats: recipe counts by status + automation info
+router.get('/:id/stats', async (req, res, next) => {
+  try {
+    const project = await require('../models').Project.findByPk(req.params.id);
+    if (!project || project.user_id !== req.user.id) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+
+    const recipes = await Recipe.findAll({ where: { project_id: req.params.id } });
+    const jobs = await Job.findAll({ where: { project_id: req.params.id } });
+
+    const recipeCounts = { total: 0, new: 0, processing: 0, completed: 0, failed: 0 };
+    for (const r of recipes) {
+      recipeCounts.total++;
+      recipeCounts[r.status] = (recipeCounts[r.status] || 0) + 1;
+    }
+
+    const jobCounts = { total: 0, pending: 0, running: 0, completed: 0, failed: 0 };
+    for (const j of jobs) {
+      jobCounts.total++;
+      jobCounts[j.status] = (jobCounts[j.status] || 0) + 1;
+    }
+
+    // Automation info
+    const automation = {
+      enabled: project.trigger_enabled,
+      interval: project.trigger_interval,
+      last_trigger_at: project.last_trigger_at,
+      has_sheet: !!project.google_sheet_url,
+    };
+
+    res.json({ recipeCounts, jobCounts, automation });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Run a specific recipe by ID
+router.post('/:id/recipes/:recipeId/run', async (req, res, next) => {
+  try {
+    const project = await require('../models').Project.findByPk(req.params.id);
+    if (!project || project.user_id !== req.user.id) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+
+    const recipe = await Recipe.findOne({
+      where: { id: req.params.recipeId, project_id: req.params.id },
+    });
+    if (!recipe) return res.status(404).json({ error: 'Recipe not found' });
+    if (recipe.status !== 'new' && recipe.status !== 'failed') {
+      return res.status(400).json({ error: `Recipe is ${recipe.status}, only new or failed recipes can be run` });
+    }
+
+    // Reset if failed
+    if (recipe.status === 'failed') {
+      await recipe.update({ status: 'new', pipeline_step: null, error_message: null });
+    }
+
+    // Create a job linked to this recipe
+    const job = await Job.create({
+      project_id: req.params.id,
+      type: 'pipeline',
+      description: `Pipeline: ${recipe.title}`,
+      recipe_id: recipe.id,
+    });
+
+    // Launch in background
+    scheduler.processNextRecipe(req.params.id, req.user.id, job.id).catch((err) => {
+      console.error(`[Projects] Run recipe failed for job ${job.id}:`, err.message);
+    });
+
+    res.json({ message: 'Recipe pipeline started', job, recipe: { id: recipe.id, title: recipe.title } });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // Manual trigger: process the next 'new' recipe immediately
 router.post('/:id/process-next', async (req, res, next) => {
   try {
