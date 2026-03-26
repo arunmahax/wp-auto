@@ -40,14 +40,18 @@ router.get('/', async (req, res, next) => {
     const countMap = {};
     jobCounts.forEach((r) => { countMap[r.status] = parseInt(r.count, 10); });
 
-    // Count queued recipes (status = 'new')
+    // Count queued recipes (status = 'new') and processing recipes
     const queuedCount = await Recipe.count({
       where: { project_id: { [Op.in]: projectIds }, status: 'new' },
     });
 
+    const processingCount = await Recipe.count({
+      where: { project_id: { [Op.in]: projectIds }, status: 'processing' },
+    });
+
     const stats = {
       projects: projects.length,
-      running: (countMap.pending || 0) + (countMap.running || 0),
+      running: (countMap.pending || 0) + (countMap.running || 0) + processingCount,
       completed: countMap.completed || 0,
       failed: countMap.failed || 0,
       queued: queuedCount,
@@ -58,6 +62,12 @@ router.get('/', async (req, res, next) => {
       where: { project_id: { [Op.in]: projectIds } },
       order: [['created_at', 'DESC']],
       limit: 100,
+    });
+
+    // Also fetch processing recipes that may not have a running job
+    const processingRecipes = await Recipe.findAll({
+      where: { project_id: { [Op.in]: projectIds }, status: 'processing' },
+      order: [['updatedAt', 'DESC']],
     });
 
     // Batch-fetch linked recipes
@@ -90,6 +100,30 @@ router.get('/', async (req, res, next) => {
         updatedAt: job.updatedAt,
       };
     });
+
+    // Add processing recipes that don't have a running/pending job as synthetic entries
+    const jobRecipeIds = new Set(jobs.filter(j => j.status === 'running' || j.status === 'pending').map(j => j.recipe_id));
+    for (const recipe of processingRecipes) {
+      if (!jobRecipeIds.has(recipe.id)) {
+        jobList.unshift({
+          id: `recipe-${recipe.id}`,
+          project_id: recipe.project_id,
+          project_name: projectMap[recipe.project_id] || 'Unknown',
+          type: 'pipeline',
+          status: 'running',
+          pipeline_step: recipe.pipeline_step,
+          error_message: null,
+          result_data: null,
+          recipe_id: recipe.id,
+          recipe_title: recipe.title,
+          recipe_status: recipe.status,
+          pin_image_url: recipe.pin_image_url,
+          published_url: recipe.published_url,
+          createdAt: recipe.createdAt,
+          updatedAt: recipe.updatedAt,
+        });
+      }
+    }
 
     res.json({ stats, jobs: jobList, projects: projects.map(p => ({ id: p.id, name: p.name })) });
   } catch (err) {
