@@ -413,17 +413,28 @@ export default function ProjectDetailPage() {
   );
 }
 
+/* ── Proxy URL helper to bypass Cloudflare ── */
+function getProxiedUrl(url) {
+  if (!url) return null;
+  // Proxy external images through our backend to bypass Cloudflare hotlink protection
+  return `/api/image-proxy?url=${encodeURIComponent(url)}`;
+}
+
 /* ── Image with loading/error state ── */
 function ImageWithFallback({ src, alt, className, labelText, labelColor = 'bg-black/60' }) {
   const [status, setStatus] = useState('loading');
   const imgRef = useRef(null);
   
+  // Use proxied URL to bypass Cloudflare
+  const proxiedSrc = getProxiedUrl(src);
+  
   // Handle cached images - onLoad may not fire if image is already cached
   useEffect(() => {
+    setStatus('loading'); // Reset on src change
     if (imgRef.current?.complete && imgRef.current?.naturalWidth > 0) {
       setStatus('loaded');
     }
-  }, [src]);
+  }, [proxiedSrc]);
   
   if (!src) return null;
   
@@ -447,9 +458,8 @@ function ImageWithFallback({ src, alt, className, labelText, labelColor = 'bg-bl
       )}
       <img 
         ref={imgRef}
-        src={src} 
+        src={proxiedSrc} 
         alt={alt} 
-        referrerPolicy="no-referrer"
         className={`w-full h-full object-cover transition-opacity ${status === 'loaded' ? 'opacity-100' : 'opacity-0'}`}
         onLoad={() => setStatus('loaded')}
         onError={() => setStatus('error')}
