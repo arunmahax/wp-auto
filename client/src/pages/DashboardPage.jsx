@@ -273,7 +273,7 @@ export default function DashboardPage() {
                 <Link to="/projects/new" className="text-indigo-600 underline">Create one</Link>
               </div>
             ) : (
-              <ProjectQuickList jobs={allJobs} />
+              <ProjectQuickList projects={data?.projects || []} jobs={allJobs} />
             )}
           </div>
 
@@ -373,36 +373,37 @@ export default function DashboardPage() {
 
 /* ---- Helper sub-components ---- */
 
-function ProjectQuickList({ jobs }) {
-  const projectMap = {};
+function ProjectQuickList({ projects, jobs }) {
+  // Build job counts per project
+  const countMap = {};
   jobs.forEach((j) => {
-    if (!projectMap[j.project_id]) {
-      projectMap[j.project_id] = { name: j.project_name, id: j.project_id, running: 0, completed: 0, failed: 0 };
-    }
-    if (j.status === 'running' || j.status === 'pending') projectMap[j.project_id].running++;
-    else if (j.status === 'completed') projectMap[j.project_id].completed++;
-    else if (j.status === 'failed') projectMap[j.project_id].failed++;
+    if (!countMap[j.project_id]) countMap[j.project_id] = { running: 0, completed: 0, failed: 0 };
+    if (j.status === 'running' || j.status === 'pending') countMap[j.project_id].running++;
+    else if (j.status === 'completed') countMap[j.project_id].completed++;
+    else if (j.status === 'failed') countMap[j.project_id].failed++;
   });
-  const projects = Object.values(projectMap);
 
   if (projects.length === 0) return null;
 
   return (
     <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-      {projects.map((p) => (
-        <Link
-          key={p.id}
-          to={`/projects/${p.id}`}
-          className="bg-white border border-gray-200 rounded-lg p-3 hover:shadow-md transition-shadow block"
-        >
-          <div className="text-sm font-semibold text-gray-900 truncate">{p.name}</div>
-          <div className="flex gap-3 mt-2 text-xs">
-            {p.running > 0 && <span className="text-blue-600">⚡ {p.running} running</span>}
-            <span className="text-green-600">✅ {p.completed}</span>
-            {p.failed > 0 && <span className="text-red-600">❌ {p.failed}</span>}
-          </div>
-        </Link>
-      ))}
+      {projects.map((p) => {
+        const c = countMap[p.id] || { running: 0, completed: 0, failed: 0 };
+        return (
+          <Link
+            key={p.id}
+            to={`/projects/${p.id}`}
+            className="bg-white border border-gray-200 rounded-lg p-3 hover:shadow-md transition-shadow block"
+          >
+            <div className="text-sm font-semibold text-gray-900 truncate">{p.name}</div>
+            <div className="flex gap-3 mt-2 text-xs">
+              {c.running > 0 && <span className="text-blue-600">⚡ {c.running} running</span>}
+              <span className="text-green-600">✅ {c.completed}</span>
+              {c.failed > 0 && <span className="text-red-600">❌ {c.failed}</span>}
+            </div>
+          </Link>
+        );
+      })}
     </div>
   );
 }

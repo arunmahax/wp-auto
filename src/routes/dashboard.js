@@ -91,7 +91,7 @@ router.get('/', async (req, res, next) => {
       };
     });
 
-    res.json({ stats, jobs: jobList });
+    res.json({ stats, jobs: jobList, projects: projects.map(p => ({ id: p.id, name: p.name })) });
   } catch (err) {
     next(err);
   }
