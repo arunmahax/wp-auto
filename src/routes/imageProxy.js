@@ -1,11 +1,10 @@
 const { Router } = require('express');
 const axios = require('axios');
-const auth = require('../middleware/auth');
 
 const router = Router();
 
-// Require auth to prevent abuse
-router.use(auth);
+// No auth required - domain whitelist + global rate limiting provides protection
+// Auth would require blob URL conversion in frontend which adds complexity
 
 /**
  * GET /api/image-proxy?url=<encoded-url>
