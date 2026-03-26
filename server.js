@@ -12,7 +12,7 @@ async function start() {
     await sequelize.authenticate();
     console.log('Database connected.');
 
-    await sequelize.sync();
+    await sequelize.sync({ alter: true });
     console.log('Models synced.');
 
     // Start automation scheduler for all active projects
