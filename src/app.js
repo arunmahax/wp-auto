@@ -8,6 +8,9 @@ const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
 
+// Trust first proxy (Traefik/Coolify) so rate limiter sees real IPs
+app.set('trust proxy', 1);
+
 // Security headers
 app.use(helmet());
 
@@ -18,8 +21,10 @@ const allowedOrigins = process.env.CORS_ORIGIN
 
 app.use(cors({
   origin(origin, cb) {
-    // Allow requests with no origin (server-to-server, curl, etc.)
-    if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
+    // Allow requests with no origin (same-origin in production, curl, etc.)
+    if (!origin) return cb(null, true);
+    // In production the SPA is served by Express itself — same origin, no CORS header
+    if (allowedOrigins.includes(origin)) return cb(null, true);
     cb(new Error('Not allowed by CORS'));
   },
   credentials: true,
