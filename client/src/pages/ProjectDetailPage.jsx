@@ -96,7 +96,7 @@ export default function ProjectDetailPage() {
   const [expandedJob, setExpandedJob] = useState(null);
   const [runningRecipeId, setRunningRecipeId] = useState(null);
   const [syncLoading, setSyncLoading] = useState(false);
-  const [expandedRecipe, setExpandedRecipe] = useState(null);
+  const [selectedRecipe, setSelectedRecipe] = useState(null);
   const pollRef = useRef(null);
 
   // Delete state
@@ -378,12 +378,21 @@ export default function ProjectDetailPage() {
               setStatusFilter={setStatusFilter}
               runningRecipeId={runningRecipeId}
               handleRunRecipe={handleRunRecipe}
-              expandedRecipe={expandedRecipe}
-              setExpandedRecipe={setExpandedRecipe}
+              onSelectRecipe={setSelectedRecipe}
             />
           )}
         </div>
       </div>
+
+      {/* Recipe Detail Modal */}
+      {selectedRecipe && (
+        <RecipeModal
+          recipe={selectedRecipe}
+          onClose={() => setSelectedRecipe(null)}
+          onRun={handleRunRecipe}
+          runningRecipeId={runningRecipeId}
+        />
+      )}
 
       {/* Delete Dialogs */}
       <ConfirmDialog
@@ -404,8 +413,182 @@ export default function ProjectDetailPage() {
   );
 }
 
+/* ── Recipe Detail Modal ── */
+function RecipeModal({ recipe, onClose, onRun, runningRecipeId }) {
+  const canRun = recipe.status === 'new' || recipe.status === 'failed';
+  const isRunning = runningRecipeId === recipe.id;
+  const mjImages = [recipe.mj_image1, recipe.mj_image2, recipe.mj_image3, recipe.mj_image4].filter(Boolean);
+
+  useEffect(() => {
+    const handleEsc = (e) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', handleEsc);
+    document.body.style.overflow = 'hidden';
+    return () => { document.removeEventListener('keydown', handleEsc); document.body.style.overflow = ''; };
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+      {/* Modal */}
+      <div
+        className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="sticky top-0 bg-white/95 backdrop-blur border-b border-gray-200 px-6 py-4 rounded-t-2xl flex items-start justify-between gap-4 z-10">
+          <div className="flex-1 min-w-0">
+            <h2 className="text-lg font-bold text-gray-900 leading-tight">{recipe.title}</h2>
+            <div className="flex items-center gap-3 mt-2">
+              <RecipeStatusBadge status={recipe.status} />
+              {recipe.status === 'processing' && recipe.pipeline_step && (
+                <span className="inline-flex items-center gap-1 text-xs text-blue-600 font-medium">
+                  <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+                  {PIPELINE_STEP_LABELS[recipe.pipeline_step] || recipe.pipeline_step}
+                </span>
+              )}
+            </div>
+          </div>
+          <button onClick={onClose} className="flex-shrink-0 p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors cursor-pointer">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+          </button>
+        </div>
+
+        <div className="px-6 py-5 space-y-6">
+          {/* Error banner */}
+          {recipe.status === 'failed' && recipe.error_message && (
+            <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-rose-100 text-rose-600 text-sm font-bold">!</span>
+                <span className="text-sm font-bold text-rose-700">
+                  Failed at: {PIPELINE_STEP_LABELS[recipe.pipeline_step] || recipe.pipeline_step || 'Unknown step'}
+                </span>
+              </div>
+              <div className="text-rose-600 text-sm leading-relaxed pl-8">{recipe.error_message}</div>
+            </div>
+          )}
+
+          {/* Processing banner */}
+          {recipe.status === 'processing' && (
+            <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl flex items-center gap-3">
+              <div className="relative flex h-6 w-6">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-6 w-6 bg-blue-500 items-center justify-center">
+                  <svg className="h-3.5 w-3.5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                </span>
+              </div>
+              <span className="text-blue-700 text-sm font-semibold">
+                Running: {PIPELINE_STEP_LABELS[recipe.pipeline_step] || recipe.pipeline_step || 'Starting...'}
+              </span>
+            </div>
+          )}
+
+          {/* Generated Images — large */}
+          {(mjImages.length > 0 || recipe.pin_image_url) && (
+            <div>
+              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Generated Images</h3>
+              <div className="grid grid-cols-2 gap-3">
+                {mjImages.map((img, i) => (
+                  <div key={i} className="relative group rounded-xl overflow-hidden border border-gray-200 bg-gray-50">
+                    <img src={img} alt={`Midjourney ${i + 1}`} className="w-full h-48 object-cover" />
+                    <span className="absolute top-2 left-2 bg-black/60 text-white text-[10px] font-bold px-2 py-0.5 rounded-md">MJ {i + 1}</span>
+                  </div>
+                ))}
+              </div>
+              {recipe.pin_image_url && (
+                <div className="mt-3">
+                  <div className="relative inline-block rounded-xl overflow-hidden border-2 border-purple-200 bg-purple-50">
+                    <img src={recipe.pin_image_url} alt="Pinterest Pin" className="h-64 w-auto object-contain" />
+                    <span className="absolute top-2 left-2 bg-purple-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-md">PIN</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Info grid */}
+          <div className="bg-gray-50 rounded-xl p-5">
+            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Details</h3>
+            <dl className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm">
+              <div>
+                <dt className="text-gray-400 text-xs font-medium">Created</dt>
+                <dd className="text-gray-800 font-medium mt-0.5">{new Date(recipe.createdAt).toLocaleString()}</dd>
+              </div>
+              <div>
+                <dt className="text-gray-400 text-xs font-medium">Updated</dt>
+                <dd className="text-gray-800 font-medium mt-0.5">{new Date(recipe.updatedAt).toLocaleString()}</dd>
+              </div>
+              {recipe.wp_post_id && (
+                <div>
+                  <dt className="text-gray-400 text-xs font-medium">WP Post ID</dt>
+                  <dd className="text-gray-800 font-medium mt-0.5">#{recipe.wp_post_id}</dd>
+                </div>
+              )}
+              {recipe.pinterest_board && (
+                <div>
+                  <dt className="text-gray-400 text-xs font-medium">Pinterest Board</dt>
+                  <dd className="text-gray-800 font-medium mt-0.5">{recipe.pinterest_board}</dd>
+                </div>
+              )}
+              {recipe.published_url && (
+                <div className="col-span-2">
+                  <dt className="text-gray-400 text-xs font-medium">Published URL</dt>
+                  <dd className="mt-0.5">
+                    <a href={recipe.published_url} target="_blank" rel="noopener noreferrer"
+                      className="text-indigo-600 hover:text-indigo-500 font-medium text-sm break-all">{recipe.published_url}</a>
+                  </dd>
+                </div>
+              )}
+            </dl>
+          </div>
+
+          {/* Action buttons */}
+          <div className="flex items-center gap-3 pt-2">
+            {canRun && (
+              <button
+                onClick={() => onRun(recipe.id)}
+                disabled={isRunning}
+                className={`inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-xl shadow-sm cursor-pointer transition-all disabled:opacity-40 ${
+                  recipe.status === 'failed'
+                    ? 'text-white bg-amber-500 hover:bg-amber-600 shadow-amber-200'
+                    : 'text-white bg-indigo-600 hover:bg-indigo-700 shadow-indigo-200'
+                }`}
+              >
+                {isRunning ? (
+                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+                ) : recipe.status === 'failed' ? (
+                  <><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg> Retry Pipeline</>
+                ) : (
+                  <><svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" /></svg> Run Pipeline</>
+                )}
+              </button>
+            )}
+            {recipe.published_url && (
+              <a
+                href={recipe.published_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-xl hover:bg-emerald-100 transition-all"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                View Post
+              </a>
+            )}
+            <button
+              onClick={onClose}
+              className="ml-auto px-4 py-2.5 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 cursor-pointer transition-all"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ── Recipes Tab (used for All Recipes, Queue, Completed, Failed) ── */
-function RecipesTab({ recipes, activeTab, statusFilter, setStatusFilter, runningRecipeId, handleRunRecipe, expandedRecipe, setExpandedRecipe }) {
+function RecipesTab({ recipes, activeTab, statusFilter, setStatusFilter, runningRecipeId, handleRunRecipe, onSelectRecipe }) {
   return (
     <div>
       {/* Filter bar (only on All Recipes tab) */}
@@ -462,8 +645,7 @@ function RecipesTab({ recipes, activeTab, statusFilter, setStatusFilter, running
                   recipe={recipe}
                   runningRecipeId={runningRecipeId}
                   handleRunRecipe={handleRunRecipe}
-                  expanded={expandedRecipe === recipe.id}
-                  onToggle={() => setExpandedRecipe(expandedRecipe === recipe.id ? null : recipe.id)}
+                  onClick={() => onSelectRecipe(recipe)}
                 />
               ))}
             </tbody>
@@ -474,161 +656,62 @@ function RecipesTab({ recipes, activeTab, statusFilter, setStatusFilter, running
   );
 }
 
-function RecipeRow({ recipe, runningRecipeId, handleRunRecipe, expanded, onToggle }) {
+function RecipeRow({ recipe, runningRecipeId, handleRunRecipe, onClick }) {
   const canRun = recipe.status === 'new' || recipe.status === 'failed';
   const isRunning = runningRecipeId === recipe.id;
 
   return (
-    <>
-      <tr className="hover:bg-indigo-50/30 cursor-pointer transition-colors group" onClick={onToggle}>
-        <td className="px-5 py-3.5">
-          <div className="font-medium text-gray-900 truncate max-w-xs group-hover:text-indigo-700 transition-colors">{recipe.title}</div>
-        </td>
-        <td className="px-4 py-3.5"><RecipeStatusBadge status={recipe.status} /></td>
-        <td className="px-4 py-3.5 text-xs">
-          {recipe.status === 'processing'
-            ? <span className="inline-flex items-center gap-1 text-blue-600 font-medium">
+    <tr className="hover:bg-indigo-50/30 cursor-pointer transition-colors group" onClick={onClick}>
+      <td className="px-5 py-3.5">
+        <div className="font-medium text-gray-900 truncate max-w-xs group-hover:text-indigo-700 transition-colors">{recipe.title}</div>
+      </td>
+      <td className="px-4 py-3.5"><RecipeStatusBadge status={recipe.status} /></td>
+      <td className="px-4 py-3.5 text-xs">
+        {recipe.status === 'processing'
+          ? <span className="inline-flex items-center gap-1 text-blue-600 font-medium">
+              <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+              {PIPELINE_STEP_LABELS[recipe.pipeline_step] || recipe.pipeline_step || '—'}
+            </span>
+          : recipe.status === 'failed'
+            ? <span className="text-rose-500 font-medium">{PIPELINE_STEP_LABELS[recipe.pipeline_step] || recipe.pipeline_step || '—'}</span>
+            : <span className="text-gray-400">—</span>}
+      </td>
+      <td className="px-4 py-3.5 text-xs text-gray-500 font-medium">
+        {new Date(recipe.updatedAt || recipe.createdAt).toLocaleDateString()}
+      </td>
+      <td className="px-5 py-3.5 text-right">
+        <div className="flex items-center justify-end gap-2">
+          {canRun && (
+            <button
+              onClick={(e) => { e.stopPropagation(); handleRunRecipe(recipe.id); }}
+              disabled={isRunning}
+              className={`inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-lg border cursor-pointer transition-all disabled:opacity-40 ${
+                recipe.status === 'failed'
+                  ? 'text-amber-700 bg-amber-50 border-amber-200 hover:bg-amber-100'
+                  : 'text-indigo-700 bg-indigo-50 border-indigo-200 hover:bg-indigo-100'
+              }`}
+            >
+              {isRunning ? (
                 <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
-                {PIPELINE_STEP_LABELS[recipe.pipeline_step] || recipe.pipeline_step || '—'}
-              </span>
-            : recipe.status === 'failed'
-              ? <span className="text-rose-500 font-medium">{PIPELINE_STEP_LABELS[recipe.pipeline_step] || recipe.pipeline_step || '—'}</span>
-              : <span className="text-gray-400">—</span>}
-        </td>
-        <td className="px-4 py-3.5 text-xs text-gray-500 font-medium">
-          {new Date(recipe.updatedAt || recipe.createdAt).toLocaleDateString()}
-        </td>
-        <td className="px-5 py-3.5 text-right">
-          <div className="flex items-center justify-end gap-2">
-            {canRun && (
-              <button
-                onClick={(e) => { e.stopPropagation(); handleRunRecipe(recipe.id); }}
-                disabled={isRunning}
-                className={`inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-lg border cursor-pointer transition-all disabled:opacity-40 ${
-                  recipe.status === 'failed'
-                    ? 'text-amber-700 bg-amber-50 border-amber-200 hover:bg-amber-100'
-                    : 'text-indigo-700 bg-indigo-50 border-indigo-200 hover:bg-indigo-100'
-                }`}
-              >
-                {isRunning ? (
-                  <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
-                ) : recipe.status === 'failed' ? '↻ Retry' : '▶ Run'}
-              </button>
-            )}
-            {recipe.published_url && (
-              <a
-                href={recipe.published_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={(e) => e.stopPropagation()}
-                className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-all"
-              >
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
-                View
-              </a>
-            )}
-            <svg className={`w-4 h-4 text-gray-400 transition-transform ${expanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
-          </div>
-        </td>
-      </tr>
-      {expanded && (
-        <tr>
-          <td colSpan="5" className="px-5 py-5 bg-gradient-to-b from-gray-50 to-white">
-            <RecipeDetail recipe={recipe} />
-          </td>
-        </tr>
-      )}
-    </>
-  );
-}
-
-function RecipeDetail({ recipe }) {
-  return (
-    <div className="space-y-4 text-sm">
-      {/* Error message */}
-      {recipe.status === 'failed' && recipe.error_message && (
-        <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl">
-          <div className="flex items-center gap-2 mb-2">
-            <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-rose-100 text-rose-600 text-xs">✗</span>
-            <span className="text-xs font-bold text-rose-700 uppercase tracking-wider">
-              Failed at: {PIPELINE_STEP_LABELS[recipe.pipeline_step] || recipe.pipeline_step || 'Unknown step'}
-            </span>
-          </div>
-          <div className="text-rose-700 text-xs leading-relaxed pl-7">{recipe.error_message}</div>
-        </div>
-      )}
-
-      {/* Processing status */}
-      {recipe.status === 'processing' && (
-        <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl flex items-center gap-3">
-          <div className="relative flex h-5 w-5">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
-            <span className="relative inline-flex rounded-full h-5 w-5 bg-blue-500 items-center justify-center">
-              <svg className="h-3 w-3 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-            </span>
-          </div>
-          <span className="text-blue-700 text-xs font-semibold">
-            Running: {PIPELINE_STEP_LABELS[recipe.pipeline_step] || recipe.pipeline_step || 'Starting...'}
-          </span>
-        </div>
-      )}
-
-      {/* Info grid */}
-      <div className="bg-white border border-gray-100 rounded-xl p-4">
-        <dl className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-3 text-xs">
-          <div>
-            <dt className="text-gray-400 font-medium uppercase tracking-wider mb-0.5">Created</dt>
-            <dd className="text-gray-700 font-medium">{new Date(recipe.createdAt).toLocaleString()}</dd>
-          </div>
-          <div>
-            <dt className="text-gray-400 font-medium uppercase tracking-wider mb-0.5">Updated</dt>
-            <dd className="text-gray-700 font-medium">{new Date(recipe.updatedAt).toLocaleString()}</dd>
-          </div>
-          {recipe.wp_post_id && (
-            <div>
-              <dt className="text-gray-400 font-medium uppercase tracking-wider mb-0.5">WP Post ID</dt>
-              <dd className="text-gray-700 font-medium">#{recipe.wp_post_id}</dd>
-            </div>
+              ) : recipe.status === 'failed' ? '↻ Retry' : '▶ Run'}
+            </button>
           )}
           {recipe.published_url && (
-            <div className="col-span-2 sm:col-span-3">
-              <dt className="text-gray-400 font-medium uppercase tracking-wider mb-0.5">Published URL</dt>
-              <dd>
-                <a href={recipe.published_url} target="_blank" rel="noopener noreferrer"
-                  className="text-indigo-600 hover:text-indigo-500 font-medium break-all">{recipe.published_url}</a>
-              </dd>
-            </div>
+            <a
+              href={recipe.published_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-all"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+              View
+            </a>
           )}
-          {recipe.pinterest_board && (
-            <div>
-              <dt className="text-gray-400 font-medium uppercase tracking-wider mb-0.5">Pin Board</dt>
-              <dd className="text-gray-700 font-medium">{recipe.pinterest_board}</dd>
-            </div>
-          )}
-        </dl>
-      </div>
-
-      {/* Images preview */}
-      {(recipe.mj_image1 || recipe.pin_image_url) && (
-        <div>
-          <div className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Generated Images</div>
-          <div className="flex gap-3 flex-wrap">
-            {[recipe.mj_image1, recipe.mj_image2, recipe.mj_image3, recipe.mj_image4].filter(Boolean).map((img, i) => (
-              <div key={i} className="group/img relative">
-                <img src={img} alt={`MJ ${i + 1}`} className="h-20 w-auto rounded-lg border border-gray-200 object-cover shadow-sm hover:shadow-md transition-shadow" />
-                <span className="absolute -top-1.5 -left-1.5 bg-white border border-gray-200 text-[10px] font-bold text-gray-500 px-1.5 py-0.5 rounded-md shadow-sm">MJ{i + 1}</span>
-              </div>
-            ))}
-            {recipe.pin_image_url && (
-              <div className="relative">
-                <img src={recipe.pin_image_url} alt="Pin" className="h-20 w-auto rounded-lg border-2 border-purple-200 object-cover shadow-sm hover:shadow-md transition-shadow" />
-                <span className="absolute -top-1.5 -left-1.5 bg-purple-50 border border-purple-200 text-[10px] font-bold text-purple-600 px-1.5 py-0.5 rounded-md shadow-sm">PIN</span>
-              </div>
-            )}
-          </div>
+          <svg className="w-4 h-4 text-gray-400 group-hover:text-indigo-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 12H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
         </div>
-      )}
-    </div>
+      </td>
+    </tr>
   );
 }
 
