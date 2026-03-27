@@ -26,7 +26,7 @@ async function imagine({ apiKey, prompt }) {
       lastError = err;
       
       // Don't retry on permanent failures
-      const permanentErrors = ['banned', 'BANNED', 'cancelled', 'CANCELLED', 'prohibited', 'invalid prompt'];
+      const permanentErrors = ['banned', 'BANNED', 'cancelled', 'CANCELLED', 'prohibited', 'invalid prompt', 'Image denied', 'image filters'];
       const isPermanent = permanentErrors.some(e => err.message?.toLowerCase().includes(e.toLowerCase()));
       
       if (isPermanent) {
@@ -147,8 +147,8 @@ async function imagineOnce({ apiKey, prompt, attempt = 1 }) {
       throw new Error('TTAPI task was banned - check your prompt for prohibited content');
     }
 
-    // Log unexpected states (not pending/running/processing)
-    const expectedStates = ['pending', 'PENDING', 'running', 'RUNNING', 'processing', 'PROCESSING', 'submitted', 'SUBMITTED', 'waiting', 'WAITING'];
+    // Log unexpected states (not pending/running/processing/queued)
+    const expectedStates = ['pending', 'PENDING', 'running', 'RUNNING', 'processing', 'PROCESSING', 'submitted', 'SUBMITTED', 'waiting', 'WAITING', 'on_queue', 'ON_QUEUE', 'queued', 'QUEUED'];
     if (state && !expectedStates.includes(state)) {
       console.warn(`[TTAPI] Unexpected state for ${jobId}: "${state}". Full status:`, JSON.stringify(status, null, 2));
     }
