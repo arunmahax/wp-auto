@@ -40,6 +40,12 @@ const Recipe = sequelize.define('Recipe', {
     type: DataTypes.TEXT,
     allowNull: true,
   },
+  // Auto-retry tracking
+  retry_count: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    defaultValue: 0,
+  },
   // Pipeline step tracking
   pipeline_step: {
     type: DataTypes.STRING(30),

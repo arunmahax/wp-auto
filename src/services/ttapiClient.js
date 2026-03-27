@@ -3,13 +3,13 @@ const axios = require('axios');
 const BASE_URL = 'https://api.ttapi.io';
 const POLL_INTERVAL = 10000;
 const POLL_TIMEOUT = 300000; // 5 min — Midjourney can be slow
-const MAX_RETRIES = 3;
-const RETRY_DELAY = 300000; // 5 minutes between retries (total 10 min retry window)
+const MAX_RETRIES = 5;        // More retries for resilience
+const RETRY_DELAY = 60000;    // 1 minute between retries (faster recovery)
 
 /**
  * Generate images via TTAPI Midjourney imagine endpoint.
  * Midjourney returns a grid of 4 images; after upscaling we get individual URLs.
- * Includes automatic retry for transient failures.
+ * Includes aggressive automatic retry for transient failures.
  *
  * @param {Object} opts
  * @param {string} opts.apiKey - TTAPI TT-API-KEY
@@ -25,8 +25,9 @@ async function imagine({ apiKey, prompt }) {
     } catch (err) {
       lastError = err;
       
-      // Don't retry on permanent failures
-      const permanentErrors = ['banned', 'BANNED', 'cancelled', 'CANCELLED', 'prohibited', 'invalid prompt', 'Image denied', 'image filters'];
+      // Only skip retry for truly permanent failures (account/auth issues)
+      // Note: "Image denied/filters" are NOT permanent - they often pass on retry
+      const permanentErrors = ['invalid api key', 'unauthorized', 'account banned', 'account suspended'];
       const isPermanent = permanentErrors.some(e => err.message?.toLowerCase().includes(e.toLowerCase()));
       
       if (isPermanent) {
@@ -35,7 +36,8 @@ async function imagine({ apiKey, prompt }) {
       }
       
       if (attempt < MAX_RETRIES) {
-        console.warn(`[TTAPI] Attempt ${attempt}/${MAX_RETRIES} failed: ${err.message}. Retrying in ${RETRY_DELAY/60000} minutes...`);
+        const waitMins = (RETRY_DELAY / 60000);
+        console.warn(`[TTAPI] Attempt ${attempt}/${MAX_RETRIES} failed: ${err.message}. Retrying in ${waitMins} minute(s)...`);
         await sleep(RETRY_DELAY);
       }
     }

@@ -11,6 +11,12 @@ const wpPublishService = require('./wpPublishService');
 // Active cron jobs keyed by project ID
 const activeJobs = new Map();
 
+// Failed recipe recovery job
+let failedRecoveryJob = null;
+
+// Max auto-retries for failed recipes
+const MAX_AUTO_RETRIES = 3;
+
 const INTERVAL_MAP = {
   '3h': '0 */3 * * *',
   '5h': '0 */5 * * *',
@@ -38,6 +44,44 @@ async function recoverOrphans() {
   );
   if (orphanedRecipes || orphanedJobs) {
     console.log(`[Scheduler] Recovered ${orphanedRecipes} orphaned recipes, ${orphanedJobs} orphaned jobs`);
+  }
+}
+
+/**
+ * Auto-recover failed recipes that haven't exceeded retry limit.
+ * This ensures transient failures (TTAPI flakiness, network issues) are automatically retried.
+ */
+async function recoverFailedRecipes() {
+  try {
+    // Find failed recipes that:
+    // 1. Haven't exceeded max retries
+    // 2. Failed in the last 24 hours (avoid retrying ancient failures)
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    
+    const failedRecipes = await Recipe.findAll({
+      where: {
+        status: 'failed',
+        retry_count: { [Op.lt]: MAX_AUTO_RETRIES },
+        updatedAt: { [Op.gte]: twentyFourHoursAgo },
+      },
+    });
+
+    if (failedRecipes.length === 0) return;
+
+    console.log(`[Scheduler] Auto-recovering ${failedRecipes.length} failed recipes...`);
+
+    for (const recipe of failedRecipes) {
+      const newRetryCount = (recipe.retry_count || 0) + 1;
+      await recipe.update({
+        status: 'new',
+        pipeline_step: null,
+        retry_count: newRetryCount,
+        error_message: `Auto-retry #${newRetryCount} (previous: ${recipe.error_message?.substring(0, 100) || 'unknown'})`,
+      });
+      console.log(`[Scheduler] Re-queued recipe "${recipe.title}" (retry ${newRetryCount}/${MAX_AUTO_RETRIES})`);
+    }
+  } catch (err) {
+    console.error('[Scheduler] Failed to auto-recover recipes:', err.message);
   }
 }
 
@@ -84,6 +128,9 @@ async function startAll() {
   // Recover any pipelines stuck from a previous crash/restart
   await recoverOrphans();
 
+  // Also recover any failed recipes that can be auto-retried
+  await recoverFailedRecipes();
+
   const projects = await Project.findAll({
     where: {
       trigger_enabled: true,
@@ -95,6 +142,14 @@ async function startAll() {
     registerProject(project);
   }
 
+  // Start failed recipe auto-recovery job (runs every 15 minutes)
+  failedRecoveryJob = cron.schedule('*/15 * * * *', () => {
+    recoverFailedRecipes().catch((err) => {
+      console.error('[Scheduler] Failed recipe recovery error:', err.message);
+    });
+  });
+  console.log('[Scheduler] Started failed recipe auto-recovery (every 15 min)');
+
   console.log(`[Scheduler] Started ${projects.length} project triggers`);
 }
 
@@ -102,6 +157,12 @@ async function startAll() {
  * Stop all cron jobs (for graceful shutdown).
  */
 function stopAll() {
+  // Stop failed recovery job
+  if (failedRecoveryJob) {
+    failedRecoveryJob.stop();
+    failedRecoveryJob = null;
+  }
+
   for (const [id, job] of activeJobs) {
     job.stop();
   }
@@ -451,4 +512,4 @@ function safeJson(str) {
   try { return JSON.parse(str); } catch { return null; }
 }
 
-module.exports = { registerProject, unregisterProject, startAll, stopAll, processNextRecipe, recoverOrphans };
+module.exports = { registerProject, unregisterProject, startAll, stopAll, processNextRecipe, recoverOrphans, recoverFailedRecipes };
