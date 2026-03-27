@@ -135,6 +135,7 @@ export default function ProjectDetailPage() {
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('kanban');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [timeFilter, setTimeFilter] = useState('all');
   const [expandedJob, setExpandedJob] = useState(null);
   const [runningRecipeId, setRunningRecipeId] = useState(null);
   const [syncLoading, setSyncLoading] = useState(false);
@@ -278,12 +279,44 @@ export default function ProjectDetailPage() {
 
   const filteredRecipes = getFilteredRecipes();
 
-  // Kanban columns
+  // Time filter helper
+  const filterByTime = (items) => {
+    if (timeFilter === 'all') return items;
+    const now = new Date();
+    const getThreshold = () => {
+      switch (timeFilter) {
+        case '24h': return new Date(now - 24 * 60 * 60 * 1000);
+        case 'yesterday': {
+          const yesterday = new Date(now);
+          yesterday.setDate(yesterday.getDate() - 1);
+          yesterday.setHours(0, 0, 0, 0);
+          const todayStart = new Date(now);
+          todayStart.setHours(0, 0, 0, 0);
+          return { start: yesterday, end: todayStart };
+        }
+        case '7d': return new Date(now - 7 * 24 * 60 * 60 * 1000);
+        case '30d': return new Date(now - 30 * 24 * 60 * 60 * 1000);
+        default: return null;
+      }
+    };
+    const threshold = getThreshold();
+    if (!threshold) return items;
+    
+    return items.filter(r => {
+      const date = new Date(r.updatedAt || r.createdAt);
+      if (threshold.start && threshold.end) {
+        return date >= threshold.start && date < threshold.end;
+      }
+      return date >= threshold;
+    });
+  };
+
+  // Kanban columns (with time filter)
   const kanbanColumns = [
-    { key: 'new', label: 'Queued', icon: Clock, items: recipes.filter(r => r.status === 'new'), color: 'var(--text-400)' },
-    { key: 'processing', label: 'Processing', icon: Zap, items: recipes.filter(r => r.status === 'processing'), color: 'var(--primary-400)' },
-    { key: 'completed', label: 'Published', icon: CheckCircle2, items: recipes.filter(r => r.status === 'completed'), color: 'var(--success-400)' },
-    { key: 'failed', label: 'Failed', icon: XCircle, items: recipes.filter(r => r.status === 'failed'), color: 'var(--error-400)' },
+    { key: 'new', label: 'Queued', icon: Clock, items: filterByTime(recipes.filter(r => r.status === 'new')), color: 'var(--text-400)' },
+    { key: 'processing', label: 'Processing', icon: Zap, items: filterByTime(recipes.filter(r => r.status === 'processing')), color: 'var(--primary-400)' },
+    { key: 'completed', label: 'Published', icon: CheckCircle2, items: filterByTime(recipes.filter(r => r.status === 'completed')), color: 'var(--success-400)' },
+    { key: 'failed', label: 'Failed', icon: XCircle, items: filterByTime(recipes.filter(r => r.status === 'failed')), color: 'var(--error-400)' },
   ];
 
   return (
@@ -452,12 +485,38 @@ export default function ProjectDetailPage() {
         {/* Tab Content */}
         <div className="p-5">
           {activeTab === 'kanban' && (
-            <KanbanView
-              columns={kanbanColumns}
-              onSelectRecipe={setSelectedRecipe}
-              handleRunRecipe={handleRunRecipe}
-              runningRecipeId={runningRecipeId}
-            />
+            <>
+              {/* Time Filter */}
+              <div className="flex items-center gap-2 mb-4 flex-wrap">
+                <span className="text-xs font-medium" style={{ color: 'var(--text-400)' }}>Filter:</span>
+                {[
+                  { key: 'all', label: 'All Time' },
+                  { key: '24h', label: 'Last 24h' },
+                  { key: 'yesterday', label: 'Yesterday' },
+                  { key: '7d', label: 'Last 7 Days' },
+                  { key: '30d', label: 'Last 30 Days' },
+                ].map((f) => (
+                  <button
+                    key={f.key}
+                    onClick={() => setTimeFilter(f.key)}
+                    className="px-3 py-1.5 text-xs font-medium rounded-lg transition-all cursor-pointer"
+                    style={{
+                      background: timeFilter === f.key ? 'rgba(99, 102, 241, 0.2)' : 'var(--bg-700)',
+                      color: timeFilter === f.key ? 'var(--primary-400)' : 'var(--text-400)',
+                      border: timeFilter === f.key ? '1px solid var(--primary-500)' : '1px solid transparent'
+                    }}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+              <KanbanView
+                columns={kanbanColumns}
+                onSelectRecipe={setSelectedRecipe}
+                handleRunRecipe={handleRunRecipe}
+                runningRecipeId={runningRecipeId}
+              />
+            </>
           )}
           
           {activeTab === 'recipes' && (
