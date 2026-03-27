@@ -42,9 +42,17 @@ async function imagine({ apiKey, prompt }) {
   while (Date.now() - start < POLL_TIMEOUT) {
     await sleep(POLL_INTERVAL);
 
-    const { data: status } = await client.get('/midjourney/v1/fetch', {
-      params: { jobId },
-    });
+    let status;
+    try {
+      const res = await client.get('/midjourney/v1/fetch', {
+        params: { jobId },
+      });
+      status = res.data;
+    } catch (fetchErr) {
+      console.error(`[TTAPI] Poll fetch error for ${jobId}:`, fetchErr.response?.data || fetchErr.message);
+      // Continue polling on transient fetch errors
+      continue;
+    }
 
     const state = status.data?.status || status.status;
     const progress = status.data?.progress || '';
@@ -84,7 +92,30 @@ async function imagine({ apiKey, prompt }) {
     }
 
     if (state === 'failed' || state === 'FAIL' || state === 'FAILED') {
-      throw new Error(`TTAPI task failed: ${status.data?.error || status.data?.failReason || 'unknown'}`);
+      // Log full response for debugging
+      console.error(`[TTAPI] Job ${jobId} failed. Full status:`, JSON.stringify(status, null, 2));
+      const errorMsg = status.data?.error 
+        || status.data?.failReason 
+        || status.data?.message
+        || status.error
+        || status.message
+        || status.data?.errorMessage
+        || (status.data ? JSON.stringify(status.data) : 'No error details returned');
+      throw new Error(`TTAPI task failed: ${errorMsg}`);
+    }
+
+    // Handle other terminal states
+    if (state === 'CANCELLED' || state === 'cancelled') {
+      throw new Error('TTAPI task was cancelled');
+    }
+    if (state === 'BANNED' || state === 'banned') {
+      throw new Error('TTAPI task was banned - check your prompt for prohibited content');
+    }
+
+    // Log unexpected states (not pending/running/processing)
+    const expectedStates = ['pending', 'PENDING', 'running', 'RUNNING', 'processing', 'PROCESSING', 'submitted', 'SUBMITTED', 'waiting', 'WAITING'];
+    if (state && !expectedStates.includes(state)) {
+      console.warn(`[TTAPI] Unexpected state for ${jobId}: "${state}". Full status:`, JSON.stringify(status, null, 2));
     }
   }
 
