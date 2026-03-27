@@ -3,10 +3,13 @@ const axios = require('axios');
 const BASE_URL = 'https://api.ttapi.io';
 const POLL_INTERVAL = 10000;
 const POLL_TIMEOUT = 300000; // 5 min — Midjourney can be slow
+const MAX_RETRIES = 3;
+const RETRY_DELAY = 15000; // 15 seconds between retries
 
 /**
  * Generate images via TTAPI Midjourney imagine endpoint.
  * Midjourney returns a grid of 4 images; after upscaling we get individual URLs.
+ * Includes automatic retry for transient failures.
  *
  * @param {Object} opts
  * @param {string} opts.apiKey - TTAPI TT-API-KEY
@@ -14,13 +17,45 @@ const POLL_TIMEOUT = 300000; // 5 min — Midjourney can be slow
  * @returns {Promise<Object>} { jobId, imageUrl, imageUrls }
  */
 async function imagine({ apiKey, prompt }) {
+  let lastError;
+  
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      return await imagineOnce({ apiKey, prompt, attempt });
+    } catch (err) {
+      lastError = err;
+      
+      // Don't retry on permanent failures
+      const permanentErrors = ['banned', 'BANNED', 'cancelled', 'CANCELLED', 'prohibited', 'invalid prompt'];
+      const isPermanent = permanentErrors.some(e => err.message?.toLowerCase().includes(e.toLowerCase()));
+      
+      if (isPermanent) {
+        console.error(`[TTAPI] Permanent failure (not retrying): ${err.message}`);
+        throw err;
+      }
+      
+      if (attempt < MAX_RETRIES) {
+        console.warn(`[TTAPI] Attempt ${attempt}/${MAX_RETRIES} failed: ${err.message}. Retrying in ${RETRY_DELAY/1000}s...`);
+        await sleep(RETRY_DELAY);
+      }
+    }
+  }
+  
+  console.error(`[TTAPI] All ${MAX_RETRIES} attempts failed`);
+  throw lastError;
+}
+
+/**
+ * Single imagine attempt (internal)
+ */
+async function imagineOnce({ apiKey, prompt, attempt = 1 }) {
   const client = axios.create({
     baseURL: BASE_URL,
     headers: { 'TT-API-KEY': apiKey, 'Content-Type': 'application/json' },
     timeout: 30000,
   });
 
-  console.log(`[TTAPI] Prompt (${prompt.length} chars):`, prompt.substring(0, 200));
+  console.log(`[TTAPI] Attempt ${attempt}: Prompt (${prompt.length} chars):`, prompt.substring(0, 200));
 
   // Submit imagine request
   let submitRes;
