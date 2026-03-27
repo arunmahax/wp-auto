@@ -4,7 +4,7 @@ const BASE_URL = 'https://api.ttapi.io';
 const POLL_INTERVAL = 10000;
 const POLL_TIMEOUT = 300000; // 5 min — Midjourney can be slow
 const MAX_RETRIES = 3;
-const RETRY_DELAY = 15000; // 15 seconds between retries
+const RETRY_DELAY = 300000; // 5 minutes between retries (total 10 min retry window)
 
 /**
  * Generate images via TTAPI Midjourney imagine endpoint.
@@ -35,7 +35,7 @@ async function imagine({ apiKey, prompt }) {
       }
       
       if (attempt < MAX_RETRIES) {
-        console.warn(`[TTAPI] Attempt ${attempt}/${MAX_RETRIES} failed: ${err.message}. Retrying in ${RETRY_DELAY/1000}s...`);
+        console.warn(`[TTAPI] Attempt ${attempt}/${MAX_RETRIES} failed: ${err.message}. Retrying in ${RETRY_DELAY/60000} minutes...`);
         await sleep(RETRY_DELAY);
       }
     }
