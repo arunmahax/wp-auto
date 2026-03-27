@@ -291,20 +291,63 @@ function formatTimeDisplay(timeStr) {
   return `${hours} ${hours === 1 ? 'Hour' : 'Hours'} ${mins} Minutes`;
 }
 
+// ─── Notes Formatting ───────────────────────────────────────────────────────
+
+/**
+ * Format notes as HTML list for Tasty Recipes.
+ * Tasty Recipes expects HTML <ul><li> format for proper rendering.
+ */
+function formatNotesHtml(notes, allergies) {
+  if (!notes && !allergies) return '';
+
+  const parts = [];
+  
+  // Parse notes into array
+  if (notes) {
+    const noteText = parseArrayOrString(notes);
+    const noteLines = noteText.split('\n').map(s => s.trim()).filter(Boolean);
+    if (noteLines.length > 0) {
+      parts.push('<ul>');
+      for (const line of noteLines) {
+        parts.push(`<li>${line}</li>`);
+      }
+      parts.push('</ul>');
+    }
+  }
+  
+  // Add allergy info as separate paragraph
+  if (allergies) {
+    parts.push(`<p><strong>Allergy Information:</strong> ${allergies}</p>`);
+  }
+  
+  return parts.join('\n');
+}
+
 // ─── Nutrition Helpers ──────────────────────────────────────────────────────
 
+/**
+ * Format nutrition value for Tasty Recipes schema.org output.
+ * Schema.org expects format like "285 calories", "12g", "28g", etc.
+ */
 function appendNutritionUnit(value, field) {
   if (!value) return '';
   const str = String(value).trim();
   if (!str) return '';
+  
+  // Extract just the number if unit already present
+  const numMatch = str.match(/^([\d.]+)/);
+  const num = numMatch ? numMatch[1] : str;
+  
+  // If it already has a unit, return as-is
   if (/[a-zA-Z]$/.test(str)) return str;
 
   const mgFields = ['sodium', 'cholesterol'];
   const noUnitFields = ['calories'];
 
-  if (noUnitFields.includes(field)) return str;
-  if (mgFields.includes(field)) return `${str}mg`;
-  return `${str}g`;
+  // For schema.org, calories should be "XXX calories" 
+  if (noUnitFields.includes(field)) return `${num} calories`;
+  if (mgFields.includes(field)) return `${num}mg`;
+  return `${num}g`;
 }
 
 // ─── Image Placeholder Processing ───────────────────────────────────────────
@@ -638,11 +681,8 @@ async function createTastyRecipe(client, parentPostId, article) {
   const instructionsHtml = formatInstructionsHtml(article.instructions);
   const equipmentHtml = article.equipment ? formatIngredientsHtml(article.equipment) : '';
 
-  // Build notes (with allergy info if present)
-  let notes = article.notes || '';
-  if (article.allergies) {
-    notes += (notes ? '\n' : '') + `<p><strong>Allergy Information:</strong> ${article.allergies}</p>`;
-  }
+  // Format notes as HTML list for proper rendering
+  const notesHtml = formatNotesHtml(article.notes, article.allergies);
 
   const payload = {
     title: article.shortTitle || article.title,
@@ -661,7 +701,7 @@ async function createTastyRecipe(client, parentPostId, article) {
       yield: article.servings,
       category: article.category,
       cuisine: article.cuisine,
-      notes,
+      notes: notesHtml,
       keywords: article.tags || '',
       calories: appendNutritionUnit(article.calories, 'calories'),
       fat: appendNutritionUnit(article.fat, 'fat'),
