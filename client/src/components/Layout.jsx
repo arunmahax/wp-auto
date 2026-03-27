@@ -1,51 +1,146 @@
-import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { Link, NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { 
+  LayoutDashboard, 
+  FolderKanban, 
+  Settings, 
+  LogOut,
+  ChevronRight,
+  Zap
+} from 'lucide-react';
 
 export default function Layout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleLogout = () => {
     logout();
     navigate('/login');
   };
 
-  const navLinkClass = ({ isActive }) =>
-    `text-sm font-medium px-3 py-1.5 rounded-md transition-colors ${
-      isActive
-        ? 'bg-indigo-50 text-indigo-700'
-        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
-    }`;
+  const navItems = [
+    { path: '/', icon: LayoutDashboard, label: 'Dashboard', end: true },
+    { path: '/settings', icon: Settings, label: 'Settings' },
+  ];
+
+  const isActive = (path, end) => {
+    if (end) return location.pathname === path;
+    return location.pathname.startsWith(path);
+  };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16 items-center">
-            <div className="flex items-center gap-6">
-              <Link to="/" className="text-xl font-bold text-indigo-600">
-                Pinterest Automation
-              </Link>
-              <div className="hidden sm:flex items-center gap-1">
-                <NavLink to="/" end className={navLinkClass}>Dashboard</NavLink>
-                <NavLink to="/settings" className={navLinkClass}>Settings</NavLink>
-              </div>
+    <div className="min-h-screen flex" style={{ background: 'var(--bg-900)' }}>
+      {/* Sidebar */}
+      <aside className="sidebar hidden lg:flex flex-col">
+        {/* Logo */}
+        <div className="p-6 border-b" style={{ borderColor: 'var(--glass-border)' }}>
+          <Link to="/" className="flex items-center gap-3">
+            <div 
+              className="w-10 h-10 rounded-lg flex items-center justify-center"
+              style={{ 
+                background: 'linear-gradient(135deg, var(--primary-500), var(--accent-500))',
+                boxShadow: '0 4px 14px var(--glow-primary)'
+              }}
+            >
+              <Zap className="w-5 h-5 text-white" />
             </div>
-            <div className="flex items-center gap-4">
-              <span className="text-sm text-gray-600">{user?.email}</span>
-              <button
-                onClick={handleLogout}
-                className="text-sm text-gray-500 hover:text-gray-700 cursor-pointer"
+            <div>
+              <span className="text-lg font-bold text-gradient">WP Auto</span>
+              <p className="text-xs" style={{ color: 'var(--text-500)' }}>Automation Platform</p>
+            </div>
+          </Link>
+        </div>
+
+        {/* Navigation */}
+        <nav className="flex-1 py-6">
+          <div className="px-3 mb-2">
+            <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-500)' }}>
+              Menu
+            </span>
+          </div>
+          {navItems.map(({ path, icon: Icon, label, end }) => {
+            const active = isActive(path, end);
+            return (
+              <NavLink
+                key={path}
+                to={path}
+                end={end}
+                className="nav-item group"
+                style={active ? {
+                  background: 'linear-gradient(135deg, var(--primary-500), var(--accent-500))',
+                  color: 'white'
+                } : {}}
               >
-                Logout
-              </button>
+                <Icon className="w-5 h-5" />
+                <span className="flex-1">{label}</span>
+                {active && <ChevronRight className="w-4 h-4 opacity-70" />}
+              </NavLink>
+            );
+          })}
+        </nav>
+
+        {/* User Section */}
+        <div className="p-4 border-t" style={{ borderColor: 'var(--glass-border)' }}>
+          <div className="flex items-center gap-3 mb-4">
+            <div 
+              className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold"
+              style={{ background: 'var(--bg-700)', color: 'var(--text-200)' }}
+            >
+              {user?.email?.charAt(0).toUpperCase() || 'U'}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium truncate" style={{ color: 'var(--text-100)' }}>
+                {user?.email}
+              </p>
             </div>
           </div>
+          <button
+            onClick={handleLogout}
+            className="nav-item w-full justify-start"
+            style={{ margin: 0 }}
+          >
+            <LogOut className="w-5 h-5" />
+            <span>Logout</span>
+          </button>
         </div>
-      </nav>
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <Outlet />
-      </main>
+      </aside>
+
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col min-h-screen">
+        {/* Mobile Header */}
+        <header 
+          className="lg:hidden px-4 py-3 border-b flex items-center justify-between"
+          style={{ background: 'var(--bg-800)', borderColor: 'var(--glass-border)' }}
+        >
+          <Link to="/" className="flex items-center gap-2">
+            <div 
+              className="w-8 h-8 rounded-lg flex items-center justify-center"
+              style={{ 
+                background: 'linear-gradient(135deg, var(--primary-500), var(--accent-500))'
+              }}
+            >
+              <Zap className="w-4 h-4 text-white" />
+            </div>
+            <span className="font-bold text-gradient">WP Auto</span>
+          </Link>
+          <div className="flex items-center gap-4">
+            <NavLink to="/settings" style={{ color: 'var(--text-400)' }}>
+              <Settings className="w-5 h-5" />
+            </NavLink>
+            <button onClick={handleLogout} style={{ color: 'var(--text-400)' }}>
+              <LogOut className="w-5 h-5" />
+            </button>
+          </div>
+        </header>
+
+        {/* Page Content */}
+        <main className="flex-1 p-6 lg:p-8 overflow-auto">
+          <div className="max-w-7xl mx-auto animate-fade-in">
+            <Outlet />
+          </div>
+        </main>
+      </div>
     </div>
   );
 }

@@ -4,6 +4,31 @@ import client from '../api/client';
 import JobStatusBadge from '../components/JobStatusBadge';
 import PipelineTracker from '../components/PipelineTracker';
 import ConfirmDialog from '../components/ConfirmDialog';
+import {
+  ArrowLeft,
+  RefreshCw,
+  Play,
+  Settings,
+  Trash2,
+  Clock,
+  Zap,
+  CheckCircle2,
+  XCircle,
+  FileText,
+  ExternalLink,
+  ChevronDown,
+  ChevronUp,
+  RotateCcw,
+  X,
+  Image,
+  Calendar,
+  Timer,
+  Loader2,
+  FolderKanban,
+  ListFilter,
+  Activity,
+  Inbox
+} from 'lucide-react';
 
 const PIPELINE_STEP_LABELS = {
   starting: 'Starting',
@@ -18,28 +43,47 @@ const PIPELINE_STEP_LABELS = {
 
 function RecipeStatusBadge({ status }) {
   const config = {
-    new: { bg: 'bg-slate-50', text: 'text-slate-600', border: 'border-slate-200', dot: 'bg-slate-400', label: 'New' },
-    processing: { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200', dot: 'bg-blue-500 animate-pulse', label: 'Processing' },
-    completed: { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', dot: 'bg-emerald-500', label: 'Completed' },
-    failed: { bg: 'bg-rose-50', text: 'text-rose-700', border: 'border-rose-200', dot: 'bg-rose-500', label: 'Failed' },
-  }[status] || { bg: 'bg-slate-50', text: 'text-slate-600', border: 'border-slate-200', dot: 'bg-slate-400', label: status };
+    new: { bg: 'rgba(100, 116, 139, 0.2)', text: 'var(--text-300)', icon: Clock, label: 'Queued' },
+    processing: { bg: 'rgba(99, 102, 241, 0.2)', text: 'var(--primary-400)', icon: Zap, label: 'Processing', spin: true },
+    completed: { bg: 'rgba(5, 150, 105, 0.2)', text: 'var(--success-400)', icon: CheckCircle2, label: 'Completed' },
+    failed: { bg: 'rgba(220, 38, 38, 0.2)', text: 'var(--error-400)', icon: XCircle, label: 'Failed' },
+  }[status] || { bg: 'rgba(100, 116, 139, 0.2)', text: 'var(--text-300)', icon: Clock, label: status };
+  const Icon = config.icon;
+  
   return (
-    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold border ${config.bg} ${config.text} ${config.border}`}>
-      <span className={`w-1.5 h-1.5 rounded-full ${config.dot}`} />
+    <span 
+      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium"
+      style={{ background: config.bg, color: config.text }}
+    >
+      <Icon className={`w-3.5 h-3.5 ${config.spin ? 'animate-spin' : ''}`} />
       {config.label}
     </span>
   );
 }
 
-function StatsCard({ label, value, icon, color = 'text-gray-900', accent = 'from-white to-white' }) {
+function StatsCard({ label, value, icon: Icon, variant = 'default' }) {
+  const variants = {
+    default: { iconBg: 'var(--bg-700)', iconColor: 'var(--text-300)' },
+    primary: { iconBg: 'rgba(99, 102, 241, 0.2)', iconColor: 'var(--primary-400)' },
+    success: { iconBg: 'rgba(5, 150, 105, 0.2)', iconColor: 'var(--success-400)' },
+    warning: { iconBg: 'rgba(217, 119, 6, 0.2)', iconColor: 'var(--warning-400)' },
+    danger: { iconBg: 'rgba(220, 38, 38, 0.2)', iconColor: 'var(--error-400)' },
+  };
+  const v = variants[variant];
+
   return (
-    <div className={`relative overflow-hidden bg-gradient-to-br ${accent} border border-gray-200/80 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow`}>
-      <div className="flex items-center justify-between">
-        <div>
-          <div className={`text-3xl font-extrabold tracking-tight ${color}`}>{value}</div>
-          <div className="text-xs font-medium text-gray-500 mt-1 uppercase tracking-wider">{label}</div>
+    <div className="stat-card group">
+      <div className="flex items-start justify-between">
+        <div 
+          className="w-10 h-10 rounded-lg flex items-center justify-center transition-transform group-hover:scale-110"
+          style={{ background: v.iconBg }}
+        >
+          <Icon className="w-5 h-5" style={{ color: v.iconColor }} />
         </div>
-        {icon && <div className="text-2xl opacity-40">{icon}</div>}
+        <div className="text-right">
+          <div className="stat-value">{value}</div>
+          <div className="stat-label">{label}</div>
+        </div>
       </div>
     </div>
   );
@@ -55,31 +99,29 @@ function NextRunCountdown({ automation }) {
   }, []);
 
   if (!automation?.enabled || !automation?.last_trigger_at) {
-    return <span className="text-gray-400 text-sm">—</span>;
+    return <span style={{ color: 'var(--text-500)' }}>--:--:--</span>;
   }
   const hours = INTERVAL_HOURS[automation.interval];
-  if (!hours) return <span className="text-gray-400 text-sm">—</span>;
+  if (!hours) return <span style={{ color: 'var(--text-500)' }}>--:--:--</span>;
 
   const nextRun = new Date(automation.last_trigger_at).getTime() + hours * 3600000;
   const remaining = nextRun - Date.now();
-  if (remaining <= 0) return <span className="text-emerald-600 font-semibold text-sm">Due now</span>;
+  if (remaining <= 0) return <span className="text-gradient font-bold">Due now</span>;
 
   const h = Math.floor(remaining / 3600000);
   const m = Math.floor((remaining % 3600000) / 60000);
   const s = Math.floor((remaining % 60000) / 1000);
   return (
-    <span className="text-indigo-600 font-mono text-lg font-bold tracking-tight">
+    <span className="text-gradient font-mono text-lg font-bold tracking-tight">
       {String(h).padStart(2, '0')}:{String(m).padStart(2, '0')}:{String(s).padStart(2, '0')}
     </span>
   );
 }
 
 const TABS = [
-  { key: 'recipes', label: 'All Recipes', icon: '📋' },
-  { key: 'queue', label: 'Queue', icon: '⏳' },
-  { key: 'completed', label: 'Completed', icon: '✅' },
-  { key: 'failed', label: 'Failed', icon: '❌' },
-  { key: 'activity', label: 'Activity', icon: '📊' },
+  { key: 'kanban', label: 'Pipeline', icon: FolderKanban },
+  { key: 'recipes', label: 'All Recipes', icon: FileText },
+  { key: 'activity', label: 'Activity', icon: Activity },
 ];
 
 export default function ProjectDetailPage() {
@@ -91,7 +133,7 @@ export default function ProjectDetailPage() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [activeTab, setActiveTab] = useState('recipes');
+  const [activeTab, setActiveTab] = useState('kanban');
   const [statusFilter, setStatusFilter] = useState('all');
   const [expandedJob, setExpandedJob] = useState(null);
   const [runningRecipeId, setRunningRecipeId] = useState(null);
@@ -166,9 +208,9 @@ export default function ProjectDetailPage() {
       setError('');
       await fetchData();
       if (data.imported > 0) {
-        setError(`✓ Imported ${data.imported} new recipes from sheet`);
+        setError(`Imported ${data.imported} new recipes from sheet`);
       } else {
-        setError('✓ Sheet is already in sync — no new recipes');
+        setError('Sheet is already in sync');
       }
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to sync sheet');
@@ -214,13 +256,13 @@ export default function ProjectDetailPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20 gap-3">
-        <svg className="animate-spin h-5 w-5 text-indigo-500" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
-        <span className="text-gray-500 text-sm">Loading project...</span>
+        <Loader2 className="w-6 h-6 animate-spin" style={{ color: 'var(--primary-500)' }} />
+        <span style={{ color: 'var(--text-400)' }}>Loading project...</span>
       </div>
     );
   }
   if (!project) {
-    return <div className="text-center py-12 text-red-500">Project not found</div>;
+    return <div className="text-center py-12" style={{ color: 'var(--error-400)' }}>Project not found</div>;
   }
 
   const hasRunningJob = jobs.some((j) => j.status === 'pending' || j.status === 'running');
@@ -230,127 +272,177 @@ export default function ProjectDetailPage() {
   // Filtered recipes per tab
   const getFilteredRecipes = () => {
     let filtered = recipes;
-    if (activeTab === 'queue') filtered = recipes.filter((r) => r.status === 'new');
-    else if (activeTab === 'completed') filtered = recipes.filter((r) => r.status === 'completed');
-    else if (activeTab === 'failed') filtered = recipes.filter((r) => r.status === 'failed');
-    else if (statusFilter !== 'all') filtered = recipes.filter((r) => r.status === statusFilter);
+    if (statusFilter !== 'all') filtered = recipes.filter((r) => r.status === statusFilter);
     return filtered;
   };
 
   const filteredRecipes = getFilteredRecipes();
 
+  // Kanban columns
+  const kanbanColumns = [
+    { key: 'new', label: 'Queued', icon: Clock, items: recipes.filter(r => r.status === 'new'), color: 'var(--text-400)' },
+    { key: 'processing', label: 'Processing', icon: Zap, items: recipes.filter(r => r.status === 'processing'), color: 'var(--primary-400)' },
+    { key: 'completed', label: 'Published', icon: CheckCircle2, items: recipes.filter(r => r.status === 'completed'), color: 'var(--success-400)' },
+    { key: 'failed', label: 'Failed', icon: XCircle, items: recipes.filter(r => r.status === 'failed'), color: 'var(--error-400)' },
+  ];
+
   return (
     <div className="space-y-6">
-      {/* ── Header ── */}
-      <div className="bg-white border border-gray-200/80 rounded-2xl p-6 shadow-sm">
-        <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+      {/* Header */}
+      <div className="card p-6">
+        <div className="flex flex-col lg:flex-row justify-between items-start gap-4">
           <div>
-            <Link to="/" className="inline-flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-500 transition-colors">
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
-              Back to Projects
+            <Link 
+              to="/" 
+              className="inline-flex items-center gap-1.5 text-xs font-medium transition-colors mb-3"
+              style={{ color: 'var(--primary-400)' }}
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              Back to Dashboard
             </Link>
-            <h1 className="text-2xl font-bold text-gray-900 mt-2 tracking-tight">{project.name}</h1>
+            <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'var(--text-50)' }}>
+              {project.name}
+            </h1>
             <div className="flex items-center gap-3 mt-3">
               {automation.enabled ? (
-                <span className="inline-flex items-center gap-2 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-lg">
-                  <span className="relative flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-                  </span>
-                  Automated · every {automation.interval}
+                <span 
+                  className="inline-flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-lg"
+                  style={{ background: 'rgba(5, 150, 105, 0.2)', color: 'var(--success-400)' }}
+                >
+                  <span className="status-dot status-dot-running" style={{ background: 'var(--success-400)' }} />
+                  Automated every {automation.interval}
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg">
-                  <span className="w-2 h-2 bg-slate-300 rounded-full" />
+                <span 
+                  className="inline-flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-lg"
+                  style={{ background: 'var(--bg-700)', color: 'var(--text-400)' }}
+                >
+                  <span className="status-dot" style={{ background: 'var(--text-500)' }} />
                   Manual mode
                 </span>
               )}
               {!automation.has_sheet && (
-                <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-600 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-lg">
-                  ⚠ No sheet linked
+                <span 
+                  className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-lg"
+                  style={{ background: 'rgba(217, 119, 6, 0.2)', color: 'var(--warning-400)' }}
+                >
+                  No sheet linked
                 </span>
               )}
             </div>
           </div>
+          
           <div className="flex flex-wrap gap-2">
             <button
               onClick={handleSyncSheet}
               disabled={syncLoading || !automation.has_sheet}
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 shadow-sm disabled:opacity-40 cursor-pointer transition-all"
+              className="btn btn-secondary"
             >
-              <svg className={`w-4 h-4 ${syncLoading ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+              <RefreshCw className={`w-4 h-4 ${syncLoading ? 'animate-spin' : ''}`} />
               {syncLoading ? 'Syncing...' : 'Sync Sheet'}
             </button>
             <button
               onClick={handleRunNext}
               disabled={hasRunningJob}
-              className="inline-flex items-center gap-1.5 px-5 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 shadow-sm shadow-indigo-200 disabled:opacity-40 cursor-pointer transition-all"
+              className="btn btn-primary"
             >
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" /></svg>
+              <Play className="w-4 h-4" />
               Run Next
             </button>
-            <Link to={`/projects/${id}/settings`}
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 shadow-sm transition-all">
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+            <Link to={`/projects/${id}/settings`} className="btn btn-secondary">
+              <Settings className="w-4 h-4" />
               Settings
             </Link>
-            <button onClick={() => setDeleteProject(true)}
-              className="inline-flex items-center px-3 py-2 text-sm font-medium text-rose-600 bg-white border border-rose-200 rounded-lg hover:bg-rose-50 shadow-sm cursor-pointer transition-all">
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+            <button 
+              onClick={() => setDeleteProject(true)}
+              className="btn btn-ghost"
+              style={{ color: 'var(--error-400)' }}
+            >
+              <Trash2 className="w-4 h-4" />
             </button>
           </div>
         </div>
       </div>
 
-      {/* ── Error / info banner ── */}
+      {/* Error/Info Banner */}
       {error && (
-        <div className={`p-4 rounded-xl text-sm font-medium border shadow-sm ${
-          error.startsWith('✓')
-            ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
-            : 'bg-rose-50 border-rose-200 text-rose-700'
-        }`}>{error}</div>
+        <div 
+          className="p-4 rounded-lg border text-sm font-medium flex items-center gap-2"
+          style={{ 
+            background: error.includes('Imported') || error.includes('sync') 
+              ? 'rgba(5, 150, 105, 0.1)' 
+              : 'rgba(220, 38, 38, 0.1)',
+            borderColor: error.includes('Imported') || error.includes('sync')
+              ? 'rgba(5, 150, 105, 0.3)'
+              : 'rgba(220, 38, 38, 0.3)',
+            color: error.includes('Imported') || error.includes('sync')
+              ? 'var(--success-400)'
+              : 'var(--error-400)'
+          }}
+        >
+          {error.includes('Imported') || error.includes('sync') ? (
+            <CheckCircle2 className="w-4 h-4" />
+          ) : (
+            <XCircle className="w-4 h-4" />
+          )}
+          {error}
+        </div>
       )}
 
-      {/* ── Stats Row ── */}
+      {/* Stats Row */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-        <StatsCard label="Total" value={rc.total} icon="📋" accent="from-slate-50 to-white" />
-        <StatsCard label="In Queue" value={rc.new} icon="⏳" color="text-slate-700" accent="from-slate-50 to-white" />
-        <StatsCard label="Processing" value={rc.processing} icon="⚡" color="text-blue-600" accent="from-blue-50 to-white" />
-        <StatsCard label="Completed" value={rc.completed} icon="✅" color="text-emerald-600" accent="from-emerald-50 to-white" />
-        <StatsCard label="Failed" value={rc.failed} icon="❌" color="text-rose-600" accent="from-rose-50 to-white" />
-        <div className="relative overflow-hidden bg-gradient-to-br from-indigo-50 to-white border border-gray-200/80 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow">
-          <div className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Next Run</div>
-          <NextRunCountdown automation={automation} />
+        <StatsCard label="Total" value={rc.total} icon={FileText} variant="default" />
+        <StatsCard label="Queued" value={rc.new} icon={Clock} variant="default" />
+        <StatsCard label="Processing" value={rc.processing} icon={Zap} variant="warning" />
+        <StatsCard label="Published" value={rc.completed} icon={CheckCircle2} variant="success" />
+        <StatsCard label="Failed" value={rc.failed} icon={XCircle} variant="danger" />
+        <div className="stat-card">
+          <div className="flex items-start justify-between">
+            <div 
+              className="w-10 h-10 rounded-lg flex items-center justify-center"
+              style={{ background: 'rgba(99, 102, 241, 0.2)' }}
+            >
+              <Timer className="w-5 h-5" style={{ color: 'var(--primary-400)' }} />
+            </div>
+            <div className="text-right">
+              <NextRunCountdown automation={automation} />
+              <div className="stat-label">Next Run</div>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* ── Tabs ── */}
-      <div className="bg-white border border-gray-200/80 rounded-2xl shadow-sm overflow-hidden">
-        <div className="border-b border-gray-200 px-2 pt-1">
+      {/* Tabs */}
+      <div className="card overflow-hidden">
+        <div className="border-b px-2 pt-1" style={{ borderColor: 'var(--glass-border)' }}>
           <nav className="flex gap-0.5 -mb-px">
             {TABS.map((tab) => {
-              const count = tab.key === 'queue' ? rc.new
-                : tab.key === 'completed' ? rc.completed
-                : tab.key === 'failed' ? rc.failed
-                : tab.key === 'activity' ? jobs.length
-                : rc.total;
+              const Icon = tab.icon;
+              const count = tab.key === 'activity' ? jobs.length : rc.total;
               const isActive = activeTab === tab.key;
               return (
                 <button
                   key={tab.key}
                   onClick={() => { setActiveTab(tab.key); setStatusFilter('all'); }}
-                  className={`relative px-5 py-3 text-sm font-medium border-b-2 transition-all cursor-pointer ${
-                    isActive
-                      ? 'border-indigo-500 text-indigo-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700'
-                  }`}
+                  className="px-5 py-3 text-sm font-medium border-b-2 transition-all cursor-pointer flex items-center gap-2"
+                  style={{
+                    borderColor: isActive ? 'var(--primary-500)' : 'transparent',
+                    color: isActive ? 'var(--primary-400)' : 'var(--text-400)'
+                  }}
                 >
-                  <span className="flex items-center gap-1.5">
-                    {tab.icon} {tab.label}
-                    <span className={`text-[11px] px-1.5 py-0.5 rounded-md font-semibold ${
-                      isActive ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-500'
-                    }`}>{count}</span>
-                  </span>
+                  <Icon className="w-4 h-4" />
+                  {tab.label}
+                  {tab.key === 'activity' && count > 0 && (
+                    <span 
+                      className="text-xs px-1.5 py-0.5 rounded-md font-semibold"
+                      style={{ 
+                        background: isActive ? 'rgba(99, 102, 241, 0.2)' : 'var(--bg-700)',
+                        color: isActive ? 'var(--primary-400)' : 'var(--text-400)'
+                      }}
+                    >
+                      {count}
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -359,7 +451,27 @@ export default function ProjectDetailPage() {
 
         {/* Tab Content */}
         <div className="p-5">
-          {activeTab === 'activity' ? (
+          {activeTab === 'kanban' && (
+            <KanbanView
+              columns={kanbanColumns}
+              onSelectRecipe={setSelectedRecipe}
+              handleRunRecipe={handleRunRecipe}
+              runningRecipeId={runningRecipeId}
+            />
+          )}
+          
+          {activeTab === 'recipes' && (
+            <RecipesTab
+              recipes={filteredRecipes}
+              statusFilter={statusFilter}
+              setStatusFilter={setStatusFilter}
+              runningRecipeId={runningRecipeId}
+              handleRunRecipe={handleRunRecipe}
+              onSelectRecipe={setSelectedRecipe}
+            />
+          )}
+          
+          {activeTab === 'activity' && (
             <ActivityTab
               jobs={jobs}
               projectId={id}
@@ -369,16 +481,6 @@ export default function ProjectDetailPage() {
               retryingId={retryingId}
               setDeleteJobTarget={setDeleteJobTarget}
               fetchData={fetchData}
-            />
-          ) : (
-            <RecipesTab
-              recipes={filteredRecipes}
-              activeTab={activeTab}
-              statusFilter={statusFilter}
-              setStatusFilter={setStatusFilter}
-              runningRecipeId={runningRecipeId}
-              handleRunRecipe={handleRunRecipe}
-              onSelectRecipe={setSelectedRecipe}
             />
           )}
         </div>
@@ -413,24 +515,113 @@ export default function ProjectDetailPage() {
   );
 }
 
+/* ── Kanban View ── */
+function KanbanView({ columns, onSelectRecipe, handleRunRecipe, runningRecipeId }) {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      {columns.map((column) => {
+        const Icon = column.icon;
+        return (
+          <div key={column.key} className="kanban-column">
+            <div className="kanban-header">
+              <div className="flex items-center gap-2">
+                <Icon className="w-4 h-4" style={{ color: column.color }} />
+                <span className="text-sm font-semibold" style={{ color: 'var(--text-100)' }}>
+                  {column.label}
+                </span>
+              </div>
+              <span className="kanban-count">{column.items.length}</span>
+            </div>
+            <div className="kanban-body">
+              {column.items.length === 0 ? (
+                <div className="text-center py-8">
+                  <Inbox className="w-8 h-8 mx-auto mb-2" style={{ color: 'var(--text-500)' }} />
+                  <p className="text-xs" style={{ color: 'var(--text-500)' }}>No recipes</p>
+                </div>
+              ) : (
+                column.items.map((recipe) => (
+                  <KanbanCard
+                    key={recipe.id}
+                    recipe={recipe}
+                    onClick={() => onSelectRecipe(recipe)}
+                    onRun={() => handleRunRecipe(recipe.id)}
+                    isRunning={runningRecipeId === recipe.id}
+                  />
+                ))
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function KanbanCard({ recipe, onClick, onRun, isRunning }) {
+  const canRun = recipe.status === 'new' || recipe.status === 'failed';
+  const pinImage = recipe.wp_pin_image || recipe.pin_image_url || recipe.wp_featured_image;
+  
+  return (
+    <div className="recipe-card" onClick={onClick}>
+      {pinImage && (
+        <div className="recipe-card-image">
+          <img 
+            src={`/api/image-proxy?url=${encodeURIComponent(pinImage)}`} 
+            alt={recipe.title}
+            onError={(e) => { e.target.style.display = 'none'; }}
+          />
+        </div>
+      )}
+      <div className="recipe-card-title">{recipe.title}</div>
+      {recipe.status === 'processing' && recipe.pipeline_step && (
+        <div className="recipe-card-status flex items-center gap-1">
+          <Loader2 className="w-3 h-3 animate-spin" style={{ color: 'var(--primary-400)' }} />
+          <span>{PIPELINE_STEP_LABELS[recipe.pipeline_step] || recipe.pipeline_step}</span>
+        </div>
+      )}
+      {recipe.status === 'failed' && (
+        <div className="recipe-card-status" style={{ color: 'var(--error-400)' }}>
+          {recipe.error_message?.slice(0, 50) || 'Failed'}
+        </div>
+      )}
+      {canRun && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onRun(); }}
+          disabled={isRunning}
+          className="btn btn-sm mt-2 w-full"
+          style={{ 
+            background: recipe.status === 'failed' ? 'rgba(217, 119, 6, 0.2)' : 'rgba(99, 102, 241, 0.2)',
+            color: recipe.status === 'failed' ? 'var(--warning-400)' : 'var(--primary-400)',
+            border: 'none'
+          }}
+        >
+          {isRunning ? (
+            <Loader2 className="w-3 h-3 animate-spin" />
+          ) : recipe.status === 'failed' ? (
+            <><RotateCcw className="w-3 h-3" /> Retry</>
+          ) : (
+            <><Play className="w-3 h-3" /> Run</>
+          )}
+        </button>
+      )}
+    </div>
+  );
+}
+
 /* ── Proxy URL helper to bypass Cloudflare ── */
 function getProxiedUrl(url) {
   if (!url) return null;
-  // Proxy external images through our backend to bypass Cloudflare hotlink protection
   return `/api/image-proxy?url=${encodeURIComponent(url)}`;
 }
 
 /* ── Image with loading/error state ── */
-function ImageWithFallback({ src, alt, className, labelText, labelColor = 'bg-black/60' }) {
+function ImageWithFallback({ src, alt, className, labelText }) {
   const [status, setStatus] = useState('loading');
   const imgRef = useRef(null);
-  
-  // Use proxied URL to bypass Cloudflare
   const proxiedSrc = getProxiedUrl(src);
   
-  // Handle cached images - onLoad may not fire if image is already cached
   useEffect(() => {
-    setStatus('loading'); // Reset on src change
+    setStatus('loading');
     if (imgRef.current?.complete && imgRef.current?.naturalWidth > 0) {
       setStatus('loaded');
     }
@@ -439,20 +630,18 @@ function ImageWithFallback({ src, alt, className, labelText, labelColor = 'bg-bl
   if (!src) return null;
   
   return (
-    <div className={`relative group rounded-xl overflow-hidden border border-gray-200 bg-gray-100 ${className || ''}`}>
+    <div 
+      className={`relative group rounded-xl overflow-hidden ${className || ''}`}
+      style={{ background: 'var(--bg-700)', border: '1px solid var(--glass-border)' }}
+    >
       {status === 'loading' && (
         <div className="absolute inset-0 flex items-center justify-center">
-          <svg className="animate-spin h-6 w-6 text-gray-400" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-          </svg>
+          <Loader2 className="w-6 h-6 animate-spin" style={{ color: 'var(--text-500)' }} />
         </div>
       )}
       {status === 'error' && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-400">
-          <svg className="w-8 h-8 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
-          </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center" style={{ color: 'var(--text-500)' }}>
+          <Image className="w-8 h-8 mb-1" />
           <span className="text-xs">Failed to load</span>
         </div>
       )}
@@ -465,7 +654,10 @@ function ImageWithFallback({ src, alt, className, labelText, labelColor = 'bg-bl
         onError={() => setStatus('error')}
       />
       {labelText && (
-        <span className={`absolute top-2 left-2 ${labelColor} text-white text-[10px] font-bold px-2 py-0.5 rounded-md shadow-sm`}>
+        <span 
+          className="absolute top-2 left-2 text-white text-xs font-bold px-2 py-0.5 rounded-md"
+          style={{ background: 'linear-gradient(135deg, var(--primary-500), var(--accent-500))' }}
+        >
           {labelText}
         </span>
       )}
@@ -474,10 +666,17 @@ function ImageWithFallback({ src, alt, className, labelText, labelColor = 'bg-bl
           href={src} 
           target="_blank" 
           rel="noopener noreferrer"
-          className="absolute inset-0 bg-black/0 hover:bg-black/20 transition-colors flex items-center justify-center opacity-0 hover:opacity-100"
+          className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity"
+          style={{ background: 'rgba(0, 0, 0, 0.5)' }}
           onClick={(e) => e.stopPropagation()}
         >
-          <span className="bg-white/90 text-gray-700 text-xs font-medium px-3 py-1.5 rounded-lg shadow">Open Full Size</span>
+          <span 
+            className="text-xs font-medium px-3 py-1.5 rounded-lg flex items-center gap-1"
+            style={{ background: 'var(--bg-800)', color: 'var(--text-100)' }}
+          >
+            <ExternalLink className="w-3 h-3" />
+            Open Full Size
+          </span>
         </a>
       )}
     </div>
@@ -488,8 +687,6 @@ function ImageWithFallback({ src, alt, className, labelText, labelColor = 'bg-bl
 function RecipeModal({ recipe, onClose, onRun, runningRecipeId }) {
   const canRun = recipe.status === 'new' || recipe.status === 'failed';
   const isRunning = runningRecipeId === recipe.id;
-  
-  // Prefer WordPress-hosted pin image, fallback to pindesigner URL
   const pinImage = recipe.wp_pin_image || recipe.pin_image_url;
   
   const wpImages = [
@@ -506,57 +703,60 @@ function RecipeModal({ recipe, onClose, onRun, runningRecipeId }) {
   }, [onClose]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
-      {/* Modal */}
+    <div className="modal-backdrop" onClick={onClose}>
       <div
-        className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+        className="modal-content"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="sticky top-0 bg-white/95 backdrop-blur border-b border-gray-200 px-6 py-4 rounded-t-2xl flex items-start justify-between gap-4 z-10">
+        <div className="modal-header">
           <div className="flex-1 min-w-0">
-            <h2 className="text-lg font-bold text-gray-900 leading-tight">{recipe.title}</h2>
+            <h2 className="text-lg font-bold leading-tight" style={{ color: 'var(--text-50)' }}>
+              {recipe.title}
+            </h2>
             <div className="flex items-center gap-3 mt-2">
               <RecipeStatusBadge status={recipe.status} />
               {recipe.status === 'processing' && recipe.pipeline_step && (
-                <span className="inline-flex items-center gap-1 text-xs text-blue-600 font-medium">
-                  <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+                <span className="inline-flex items-center gap-1 text-xs font-medium" style={{ color: 'var(--primary-400)' }}>
+                  <Loader2 className="w-3 h-3 animate-spin" />
                   {PIPELINE_STEP_LABELS[recipe.pipeline_step] || recipe.pipeline_step}
                 </span>
               )}
             </div>
           </div>
-          <button onClick={onClose} className="flex-shrink-0 p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors cursor-pointer">
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+          <button 
+            onClick={onClose} 
+            className="btn btn-ghost p-1.5"
+          >
+            <X className="w-5 h-5" />
           </button>
         </div>
 
-        <div className="px-6 py-5 space-y-6">
+        <div className="modal-body space-y-6">
           {/* Error banner */}
           {recipe.status === 'failed' && recipe.error_message && (
-            <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl">
+            <div 
+              className="p-4 rounded-lg"
+              style={{ background: 'rgba(220, 38, 38, 0.1)', border: '1px solid rgba(220, 38, 38, 0.3)' }}
+            >
               <div className="flex items-center gap-2 mb-2">
-                <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-rose-100 text-rose-600 text-sm font-bold">!</span>
-                <span className="text-sm font-bold text-rose-700">
+                <XCircle className="w-5 h-5" style={{ color: 'var(--error-400)' }} />
+                <span className="text-sm font-bold" style={{ color: 'var(--error-400)' }}>
                   Failed at: {PIPELINE_STEP_LABELS[recipe.pipeline_step] || recipe.pipeline_step || 'Unknown step'}
                 </span>
               </div>
-              <div className="text-rose-600 text-sm leading-relaxed pl-8">{recipe.error_message}</div>
+              <div className="text-sm pl-7" style={{ color: 'var(--error-400)' }}>{recipe.error_message}</div>
             </div>
           )}
 
           {/* Processing banner */}
           {recipe.status === 'processing' && (
-            <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl flex items-center gap-3">
-              <div className="relative flex h-6 w-6">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-6 w-6 bg-blue-500 items-center justify-center">
-                  <svg className="h-3.5 w-3.5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-                </span>
-              </div>
-              <span className="text-blue-700 text-sm font-semibold">
+            <div 
+              className="p-4 rounded-lg flex items-center gap-3"
+              style={{ background: 'rgba(99, 102, 241, 0.1)', border: '1px solid rgba(99, 102, 241, 0.3)' }}
+            >
+              <div className="status-dot status-dot-running" />
+              <span className="text-sm font-semibold" style={{ color: 'var(--primary-400)' }}>
                 Running: {PIPELINE_STEP_LABELS[recipe.pipeline_step] || recipe.pipeline_step || 'Starting...'}
               </span>
             </div>
@@ -565,7 +765,9 @@ function RecipeModal({ recipe, onClose, onRun, runningRecipeId }) {
           {/* WordPress Images */}
           {wpImages.length > 0 && (
             <div>
-              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Blog Images</h3>
+              <h3 className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-400)' }}>
+                Blog Images
+              </h3>
               <div className="grid grid-cols-3 gap-3">
                 {wpImages.map((img, i) => (
                   <ImageWithFallback
@@ -574,7 +776,6 @@ function RecipeModal({ recipe, onClose, onRun, runningRecipeId }) {
                     alt={img.label}
                     className="h-36"
                     labelText={img.label}
-                    labelColor="bg-indigo-600"
                   />
                 ))}
               </div>
@@ -584,157 +785,165 @@ function RecipeModal({ recipe, onClose, onRun, runningRecipeId }) {
           {/* Pinterest Pin Design */}
           {pinImage && (
             <div>
-              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Pinterest Pin</h3>
+              <h3 className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-400)' }}>
+                Pinterest Pin
+              </h3>
               <ImageWithFallback
                 src={pinImage}
                 alt="Pinterest Pin"
-                className="h-80 w-auto inline-block border-2 border-purple-200"
+                className="h-80 w-auto inline-block"
                 labelText="PIN"
-                labelColor="bg-purple-600"
               />
             </div>
           )}
 
           {/* Info grid */}
-          <div className="bg-gray-50 rounded-xl p-5">
-            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Details</h3>
+          <div className="rounded-lg p-5" style={{ background: 'var(--bg-700)' }}>
+            <h3 className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-400)' }}>
+              Details
+            </h3>
             <dl className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm">
               <div>
-                <dt className="text-gray-400 text-xs font-medium">Created</dt>
-                <dd className="text-gray-800 font-medium mt-0.5">{new Date(recipe.createdAt).toLocaleString()}</dd>
+                <dt className="text-xs font-medium" style={{ color: 'var(--text-500)' }}>Created</dt>
+                <dd className="font-medium mt-0.5" style={{ color: 'var(--text-100)' }}>
+                  {new Date(recipe.createdAt).toLocaleString()}
+                </dd>
               </div>
               <div>
-                <dt className="text-gray-400 text-xs font-medium">Updated</dt>
-                <dd className="text-gray-800 font-medium mt-0.5">{new Date(recipe.updatedAt).toLocaleString()}</dd>
+                <dt className="text-xs font-medium" style={{ color: 'var(--text-500)' }}>Updated</dt>
+                <dd className="font-medium mt-0.5" style={{ color: 'var(--text-100)' }}>
+                  {new Date(recipe.updatedAt).toLocaleString()}
+                </dd>
               </div>
               {recipe.wp_post_id && (
                 <div>
-                  <dt className="text-gray-400 text-xs font-medium">WP Post ID</dt>
-                  <dd className="text-gray-800 font-medium mt-0.5">#{recipe.wp_post_id}</dd>
+                  <dt className="text-xs font-medium" style={{ color: 'var(--text-500)' }}>WP Post ID</dt>
+                  <dd className="font-medium mt-0.5" style={{ color: 'var(--text-100)' }}>#{recipe.wp_post_id}</dd>
                 </div>
               )}
               {recipe.pinterest_board && (
                 <div>
-                  <dt className="text-gray-400 text-xs font-medium">Pinterest Board</dt>
-                  <dd className="text-gray-800 font-medium mt-0.5">{recipe.pinterest_board}</dd>
+                  <dt className="text-xs font-medium" style={{ color: 'var(--text-500)' }}>Pinterest Board</dt>
+                  <dd className="font-medium mt-0.5" style={{ color: 'var(--text-100)' }}>{recipe.pinterest_board}</dd>
                 </div>
               )}
               {recipe.published_url && (
                 <div className="col-span-2">
-                  <dt className="text-gray-400 text-xs font-medium">Published URL</dt>
+                  <dt className="text-xs font-medium" style={{ color: 'var(--text-500)' }}>Published URL</dt>
                   <dd className="mt-0.5">
-                    <a href={recipe.published_url} target="_blank" rel="noopener noreferrer"
-                      className="text-indigo-600 hover:text-indigo-500 font-medium text-sm break-all">{recipe.published_url}</a>
+                    <a 
+                      href={recipe.published_url} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="font-medium text-sm break-all flex items-center gap-1"
+                      style={{ color: 'var(--primary-400)' }}
+                    >
+                      <ExternalLink className="w-3 h-3" />
+                      {recipe.published_url}
+                    </a>
                   </dd>
                 </div>
               )}
             </dl>
           </div>
+        </div>
 
-          {/* Action buttons */}
-          <div className="flex items-center gap-3 pt-2">
-            {canRun && (
-              <button
-                onClick={() => onRun(recipe.id)}
-                disabled={isRunning}
-                className={`inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-xl shadow-sm cursor-pointer transition-all disabled:opacity-40 ${
-                  recipe.status === 'failed'
-                    ? 'text-white bg-amber-500 hover:bg-amber-600 shadow-amber-200'
-                    : 'text-white bg-indigo-600 hover:bg-indigo-700 shadow-indigo-200'
-                }`}
-              >
-                {isRunning ? (
-                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
-                ) : recipe.status === 'failed' ? (
-                  <><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg> Retry Pipeline</>
-                ) : (
-                  <><svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" /></svg> Run Pipeline</>
-                )}
-              </button>
-            )}
-            {recipe.published_url && (
-              <a
-                href={recipe.published_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-xl hover:bg-emerald-100 transition-all"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
-                View Post
-              </a>
-            )}
+        {/* Footer */}
+        <div className="modal-footer">
+          {canRun && (
             <button
-              onClick={onClose}
-              className="ml-auto px-4 py-2.5 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 cursor-pointer transition-all"
+              onClick={() => onRun(recipe.id)}
+              disabled={isRunning}
+              className={`btn ${recipe.status === 'failed' ? 'btn-warning' : 'btn-primary'}`}
+              style={recipe.status === 'failed' ? {
+                background: 'linear-gradient(135deg, var(--warning-500), var(--warning-400))',
+                boxShadow: '0 4px 14px rgba(217, 119, 6, 0.4)'
+              } : {}}
             >
-              Close
+              {isRunning ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : recipe.status === 'failed' ? (
+                <><RotateCcw className="w-4 h-4" /> Retry Pipeline</>
+              ) : (
+                <><Play className="w-4 h-4" /> Run Pipeline</>
+              )}
             </button>
-          </div>
+          )}
+          {recipe.published_url && (
+            <a
+              href={recipe.published_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn btn-success"
+            >
+              <ExternalLink className="w-4 h-4" />
+              View Post
+            </a>
+          )}
+          <button onClick={onClose} className="btn btn-secondary ml-auto">
+            Close
+          </button>
         </div>
       </div>
     </div>
   );
 }
 
-/* ── Recipes Tab (used for All Recipes, Queue, Completed, Failed) ── */
-function RecipesTab({ recipes, activeTab, statusFilter, setStatusFilter, runningRecipeId, handleRunRecipe, onSelectRecipe }) {
+/* ── Recipes Tab ── */
+function RecipesTab({ recipes, statusFilter, setStatusFilter, runningRecipeId, handleRunRecipe, onSelectRecipe }) {
   return (
     <div>
-      {/* Filter bar (only on All Recipes tab) */}
-      {activeTab === 'recipes' && (
-        <div className="flex items-center gap-2 mb-5">
-          <span className="text-xs font-medium text-gray-500 uppercase tracking-wider mr-1">Filter</span>
-          {['all', 'new', 'processing', 'completed', 'failed'].map((s) => (
-            <button
-              key={s}
-              onClick={() => setStatusFilter(s)}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-lg border cursor-pointer transition-all ${
-                statusFilter === s
-                  ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm shadow-indigo-200'
-                  : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300'
-              }`}
-            >
-              {s === 'all' ? 'All' : s.charAt(0).toUpperCase() + s.slice(1)}
-            </button>
-          ))}
-        </div>
-      )}
+      {/* Filter bar */}
+      <div className="flex items-center gap-2 mb-5">
+        <ListFilter className="w-4 h-4" style={{ color: 'var(--text-500)' }} />
+        <span className="text-xs font-medium uppercase tracking-wider mr-1" style={{ color: 'var(--text-500)' }}>Filter</span>
+        {['all', 'new', 'processing', 'completed', 'failed'].map((s) => (
+          <button
+            key={s}
+            onClick={() => setStatusFilter(s)}
+            className="px-3 py-1.5 text-xs font-semibold rounded-lg cursor-pointer transition-all"
+            style={{
+              background: statusFilter === s ? 'linear-gradient(135deg, var(--primary-500), var(--accent-500))' : 'var(--bg-700)',
+              color: statusFilter === s ? 'white' : 'var(--text-300)',
+              border: 'none'
+            }}
+          >
+            {s === 'all' ? 'All' : s.charAt(0).toUpperCase() + s.slice(1)}
+          </button>
+        ))}
+      </div>
 
       {recipes.length === 0 ? (
-        <div className="text-center py-16 text-gray-400">
-          <div className="text-4xl mb-3">
-            {activeTab === 'queue' ? '⏳' : activeTab === 'completed' ? '🎉' : activeTab === 'failed' ? '✅' : '📋'}
+        <div className="text-center py-16">
+          <Inbox className="w-12 h-12 mx-auto mb-3" style={{ color: 'var(--text-500)' }} />
+          <div className="text-sm font-medium" style={{ color: 'var(--text-400)' }}>
+            No recipes found
           </div>
-          <div className="text-sm font-medium text-gray-500">
-            {activeTab === 'queue' ? 'No recipes in queue'
-              : activeTab === 'completed' ? 'No completed recipes yet'
-              : activeTab === 'failed' ? 'No failed recipes — looking good!'
-              : 'No recipes found'}
-          </div>
-          <div className="text-xs text-gray-400 mt-1">
-            {activeTab === 'queue' || activeTab === 'recipes' ? 'Sync your Google Sheet to import recipes' : ''}
+          <div className="text-xs mt-1" style={{ color: 'var(--text-500)' }}>
+            Sync your Google Sheet to import recipes
           </div>
         </div>
       ) : (
-        <div className="rounded-xl border border-gray-200 overflow-hidden">
+        <div className="rounded-lg overflow-hidden" style={{ border: '1px solid var(--glass-border)' }}>
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-gray-50/80">
-                <th className="text-left px-5 py-3.5 font-semibold text-gray-600 text-xs uppercase tracking-wider w-[40%]">Recipe</th>
-                <th className="text-left px-4 py-3.5 font-semibold text-gray-600 text-xs uppercase tracking-wider">Status</th>
-                <th className="text-left px-4 py-3.5 font-semibold text-gray-600 text-xs uppercase tracking-wider">Step</th>
-                <th className="text-left px-4 py-3.5 font-semibold text-gray-600 text-xs uppercase tracking-wider">Date</th>
-                <th className="text-right px-5 py-3.5 font-semibold text-gray-600 text-xs uppercase tracking-wider">Actions</th>
+              <tr style={{ background: 'var(--bg-700)' }}>
+                <th className="text-left px-5 py-3.5 font-semibold text-xs uppercase tracking-wider w-[40%]" style={{ color: 'var(--text-400)' }}>Recipe</th>
+                <th className="text-left px-4 py-3.5 font-semibold text-xs uppercase tracking-wider" style={{ color: 'var(--text-400)' }}>Status</th>
+                <th className="text-left px-4 py-3.5 font-semibold text-xs uppercase tracking-wider" style={{ color: 'var(--text-400)' }}>Step</th>
+                <th className="text-left px-4 py-3.5 font-semibold text-xs uppercase tracking-wider" style={{ color: 'var(--text-400)' }}>Date</th>
+                <th className="text-right px-5 py-3.5 font-semibold text-xs uppercase tracking-wider" style={{ color: 'var(--text-400)' }}>Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
-              {recipes.map((recipe) => (
+            <tbody>
+              {recipes.map((recipe, idx) => (
                 <RecipeRow
                   key={recipe.id}
                   recipe={recipe}
                   runningRecipeId={runningRecipeId}
                   handleRunRecipe={handleRunRecipe}
                   onClick={() => onSelectRecipe(recipe)}
+                  isLast={idx === recipes.length - 1}
                 />
               ))}
             </tbody>
@@ -745,27 +954,42 @@ function RecipesTab({ recipes, activeTab, statusFilter, setStatusFilter, running
   );
 }
 
-function RecipeRow({ recipe, runningRecipeId, handleRunRecipe, onClick }) {
+function RecipeRow({ recipe, runningRecipeId, handleRunRecipe, onClick, isLast }) {
   const canRun = recipe.status === 'new' || recipe.status === 'failed';
   const isRunning = runningRecipeId === recipe.id;
 
   return (
-    <tr className="hover:bg-indigo-50/30 cursor-pointer transition-colors group" onClick={onClick}>
+    <tr 
+      className="cursor-pointer transition-colors group"
+      style={{ 
+        borderBottom: isLast ? 'none' : '1px solid var(--glass-border)',
+        background: 'var(--bg-800)'
+      }}
+      onClick={onClick}
+      onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-700)'}
+      onMouseLeave={(e) => e.currentTarget.style.background = 'var(--bg-800)'}
+    >
       <td className="px-5 py-3.5">
-        <div className="font-medium text-gray-900 truncate max-w-xs group-hover:text-indigo-700 transition-colors">{recipe.title}</div>
+        <div className="font-medium truncate max-w-xs transition-colors" style={{ color: 'var(--text-100)' }}>
+          {recipe.title}
+        </div>
       </td>
       <td className="px-4 py-3.5"><RecipeStatusBadge status={recipe.status} /></td>
       <td className="px-4 py-3.5 text-xs">
-        {recipe.status === 'processing'
-          ? <span className="inline-flex items-center gap-1 text-blue-600 font-medium">
-              <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
-              {PIPELINE_STEP_LABELS[recipe.pipeline_step] || recipe.pipeline_step || '—'}
-            </span>
-          : recipe.status === 'failed'
-            ? <span className="text-rose-500 font-medium">{PIPELINE_STEP_LABELS[recipe.pipeline_step] || recipe.pipeline_step || '—'}</span>
-            : <span className="text-gray-400">—</span>}
+        {recipe.status === 'processing' ? (
+          <span className="inline-flex items-center gap-1 font-medium" style={{ color: 'var(--primary-400)' }}>
+            <Loader2 className="w-3 h-3 animate-spin" />
+            {PIPELINE_STEP_LABELS[recipe.pipeline_step] || recipe.pipeline_step || '-'}
+          </span>
+        ) : recipe.status === 'failed' ? (
+          <span className="font-medium" style={{ color: 'var(--error-400)' }}>
+            {PIPELINE_STEP_LABELS[recipe.pipeline_step] || recipe.pipeline_step || '-'}
+          </span>
+        ) : (
+          <span style={{ color: 'var(--text-500)' }}>-</span>
+        )}
       </td>
-      <td className="px-4 py-3.5 text-xs text-gray-500 font-medium">
+      <td className="px-4 py-3.5 text-xs font-medium" style={{ color: 'var(--text-400)' }}>
         {new Date(recipe.updatedAt || recipe.createdAt).toLocaleDateString()}
       </td>
       <td className="px-5 py-3.5 text-right">
@@ -774,15 +998,20 @@ function RecipeRow({ recipe, runningRecipeId, handleRunRecipe, onClick }) {
             <button
               onClick={(e) => { e.stopPropagation(); handleRunRecipe(recipe.id); }}
               disabled={isRunning}
-              className={`inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-lg border cursor-pointer transition-all disabled:opacity-40 ${
-                recipe.status === 'failed'
-                  ? 'text-amber-700 bg-amber-50 border-amber-200 hover:bg-amber-100'
-                  : 'text-indigo-700 bg-indigo-50 border-indigo-200 hover:bg-indigo-100'
-              }`}
+              className="btn btn-sm"
+              style={{ 
+                background: recipe.status === 'failed' ? 'rgba(217, 119, 6, 0.2)' : 'rgba(99, 102, 241, 0.2)',
+                color: recipe.status === 'failed' ? 'var(--warning-400)' : 'var(--primary-400)',
+                border: 'none'
+              }}
             >
               {isRunning ? (
-                <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
-              ) : recipe.status === 'failed' ? '↻ Retry' : '▶ Run'}
+                <Loader2 className="w-3 h-3 animate-spin" />
+              ) : recipe.status === 'failed' ? (
+                <><RotateCcw className="w-3 h-3" /> Retry</>
+              ) : (
+                <><Play className="w-3 h-3" /> Run</>
+              )}
             </button>
           )}
           {recipe.published_url && (
@@ -791,13 +1020,17 @@ function RecipeRow({ recipe, runningRecipeId, handleRunRecipe, onClick }) {
               target="_blank"
               rel="noopener noreferrer"
               onClick={(e) => e.stopPropagation()}
-              className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-all"
+              className="btn btn-sm"
+              style={{ 
+                background: 'rgba(5, 150, 105, 0.2)',
+                color: 'var(--success-400)',
+                border: 'none'
+              }}
             >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+              <ExternalLink className="w-3 h-3" />
               View
             </a>
           )}
-          <svg className="w-4 h-4 text-gray-400 group-hover:text-indigo-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 12H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
         </div>
       </td>
     </tr>
@@ -808,10 +1041,14 @@ function RecipeRow({ recipe, runningRecipeId, handleRunRecipe, onClick }) {
 function ActivityTab({ jobs, projectId, expandedJob, setExpandedJob, handleRetryJob, retryingId, setDeleteJobTarget, fetchData }) {
   if (jobs.length === 0) {
     return (
-      <div className="text-center py-16 text-gray-400">
-        <div className="text-4xl mb-3">📊</div>
-        <div className="text-sm font-medium text-gray-500">No pipeline activity yet</div>
-        <div className="text-xs text-gray-400 mt-1">Run a recipe to see it here</div>
+      <div className="text-center py-16">
+        <Activity className="w-12 h-12 mx-auto mb-3" style={{ color: 'var(--text-500)' }} />
+        <div className="text-sm font-medium" style={{ color: 'var(--text-400)' }}>
+          No pipeline activity yet
+        </div>
+        <div className="text-xs mt-1" style={{ color: 'var(--text-500)' }}>
+          Run a recipe to see it here
+        </div>
       </div>
     );
   }
@@ -819,39 +1056,59 @@ function ActivityTab({ jobs, projectId, expandedJob, setExpandedJob, handleRetry
   return (
     <div className="space-y-3">
       {jobs.map((job) => (
-        <div key={job.id} className="bg-white rounded-xl border border-gray-200 hover:border-gray-300 transition-colors shadow-sm">
+        <div 
+          key={job.id} 
+          className="card overflow-hidden"
+        >
           <div
-            className="p-4 flex items-center justify-between cursor-pointer hover:bg-gray-50/50 transition-colors"
+            className="p-4 flex items-center justify-between cursor-pointer transition-colors"
+            style={{ background: expandedJob === job.id ? 'var(--bg-700)' : 'transparent' }}
             onClick={() => setExpandedJob(expandedJob === job.id ? null : job.id)}
           >
             <div className="flex items-center gap-3">
               <JobStatusBadge status={job.status} />
-              <span className="text-sm font-semibold text-gray-900">{job.description || job.type}</span>
+              <span className="text-sm font-semibold" style={{ color: 'var(--text-100)' }}>
+                {job.description || job.type}
+              </span>
             </div>
             <div className="flex items-center gap-3">
-              <span className="text-xs text-gray-400 font-medium">{new Date(job.createdAt).toLocaleString()}</span>
+              <span className="text-xs font-medium" style={{ color: 'var(--text-500)' }}>
+                {new Date(job.createdAt).toLocaleString()}
+              </span>
               {job.status === 'failed' && (
                 <button
                   onClick={(e) => { e.stopPropagation(); handleRetryJob(job); }}
                   disabled={retryingId === job.id}
-                  className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-lg hover:bg-amber-100 disabled:opacity-50 cursor-pointer transition-all"
+                  className="btn btn-sm"
+                  style={{ 
+                    background: 'rgba(217, 119, 6, 0.2)',
+                    color: 'var(--warning-400)',
+                    border: 'none'
+                  }}
                 >
                   {retryingId === job.id ? (
-                    <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
-                  ) : '↻ Retry'}
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : (
+                    <><RotateCcw className="w-3 h-3" /> Retry</>
+                  )}
                 </button>
               )}
               <button
                 onClick={(e) => { e.stopPropagation(); setDeleteJobTarget(job); }}
-                className="text-xs text-gray-400 hover:text-rose-600 cursor-pointer transition-colors"
+                className="btn btn-ghost p-1"
+                style={{ color: 'var(--text-500)' }}
               >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                <Trash2 className="w-4 h-4" />
               </button>
-              <svg className={`w-4 h-4 text-gray-400 transition-transform ${expandedJob === job.id ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+              {expandedJob === job.id ? (
+                <ChevronUp className="w-4 h-4" style={{ color: 'var(--text-400)' }} />
+              ) : (
+                <ChevronDown className="w-4 h-4" style={{ color: 'var(--text-400)' }} />
+              )}
             </div>
           </div>
           {expandedJob === job.id && (
-            <div className="px-4 pb-4">
+            <div className="px-4 pb-4 border-t" style={{ borderColor: 'var(--glass-border)' }}>
               <PipelineTracker projectId={projectId} job={job} onUpdate={fetchData} />
             </div>
           )}

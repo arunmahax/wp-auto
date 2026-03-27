@@ -1,6 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import client from '../api/client';
+import { 
+  ArrowLeft, Settings, FileSpreadsheet, Clock, FileText, Image, Palette, 
+  FolderTree, Layout, Users, ChefHat, RefreshCw, Loader2, XCircle, CheckCircle2 
+} from 'lucide-react';
 
 export default function ProjectSettingsPage() {
   const { id } = useParams();
@@ -113,7 +117,6 @@ export default function ProjectSettingsPage() {
       const { data } = await client.post(`/projects/${id}/sync-sheet`);
       setSyncResult(data);
       setSuccess(`Imported ${data.imported} new recipes (${data.already_existed} duplicates skipped)`);
-      // Refresh recipes list
       const recipesRes = await client.get(`/projects/${id}/recipes`);
       setRecipes(recipesRes.data);
     } catch (err) {
@@ -142,50 +145,113 @@ export default function ProjectSettingsPage() {
     try { return JSON.parse(str); } catch { return []; }
   };
 
-  if (loading) return <div className="text-center py-12 text-gray-500">Loading...</div>;
-  if (!project) return <div className="text-center py-12 text-red-500">Project not found</div>;
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12" style={{ color: 'var(--text-400)' }}>
+        <Loader2 className="w-5 h-5 animate-spin mr-2" /> Loading...
+      </div>
+    );
+  }
+  if (!project) {
+    return (
+      <div className="text-center py-12" style={{ color: 'var(--error-400)' }}>Project not found</div>
+    );
+  }
 
   const categories = parseJson(project.wp_categories);
   const boards = parseJson(project.wp_pinboards);
   const authors = parseJson(project.wp_authors);
 
+  const getRecipeStatusColor = (status) => {
+    switch (status) {
+      case 'completed': return 'var(--success-400)';
+      case 'processing': return 'var(--warning-400)';
+      case 'failed': return 'var(--error-400)';
+      default: return 'var(--text-400)';
+    }
+  };
+
   return (
     <div className="max-w-2xl mx-auto">
-      <Link to={`/projects/${id}`} className="text-sm text-indigo-600 hover:text-indigo-500">&larr; Back to Project</Link>
-      <h1 className="text-2xl font-bold text-gray-900 mt-2 mb-6">{project.name} — Settings</h1>
+      <Link 
+        to={`/projects/${id}`} 
+        className="text-sm flex items-center gap-1 mb-2 hover:opacity-80 transition-opacity"
+        style={{ color: 'var(--primary-400)' }}
+      >
+        <ArrowLeft className="w-4 h-4" /> Back to Project
+      </Link>
+      
+      <div className="flex items-center gap-3 mb-6">
+        <div 
+          className="w-10 h-10 rounded-lg flex items-center justify-center"
+          style={{ background: 'linear-gradient(135deg, var(--primary-500), var(--accent-500))' }}
+        >
+          <Settings className="w-5 h-5 text-white" />
+        </div>
+        <h1 className="text-2xl font-bold" style={{ color: 'var(--text-50)' }}>{project.name} — Settings</h1>
+      </div>
 
-      {error && <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md text-sm text-red-700">{error}</div>}
-      {success && <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md text-sm text-green-700">{success}</div>}
+      {error && (
+        <div 
+          className="mb-4 p-3 rounded-lg text-sm flex items-center gap-2"
+          style={{ background: 'rgba(220, 38, 38, 0.1)', border: '1px solid rgba(220, 38, 38, 0.3)', color: 'var(--error-400)' }}
+        >
+          <XCircle className="w-4 h-4" />
+          {error}
+        </div>
+      )}
+      {success && (
+        <div 
+          className="mb-4 p-3 rounded-lg text-sm flex items-center gap-2"
+          style={{ background: 'rgba(34, 197, 94, 0.1)', border: '1px solid rgba(34, 197, 94, 0.3)', color: 'var(--success-400)' }}
+        >
+          <CheckCircle2 className="w-4 h-4" />
+          {success}
+        </div>
+      )}
 
-      <form onSubmit={handleSave} className="space-y-8">
+      <form onSubmit={handleSave} className="space-y-6">
         {/* Google Sheet */}
-        <section className="bg-white rounded-lg border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-1">Google Sheet Spy Data</h2>
-          <p className="text-xs text-gray-400 mb-4">Public Google Sheet URL containing recipe spy data for ingestion</p>
+        <section className="card p-6">
+          <div className="flex items-center gap-2 mb-1">
+            <FileSpreadsheet className="w-4 h-4" style={{ color: 'var(--primary-400)' }} />
+            <h2 className="text-lg font-semibold" style={{ color: 'var(--text-100)' }}>Google Sheet Spy Data</h2>
+          </div>
+          <p className="text-xs mb-4" style={{ color: 'var(--text-500)' }}>
+            Public Google Sheet URL containing recipe spy data for ingestion
+          </p>
           <div>
-            <label htmlFor="google_sheet_url" className="block text-sm font-medium text-gray-700 mb-1">Sheet URL</label>
+            <label htmlFor="google_sheet_url" className="label">Sheet URL</label>
             <input id="google_sheet_url" name="google_sheet_url" value={form.google_sheet_url} onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="input"
               placeholder="https://docs.google.com/spreadsheets/d/..."
             />
           </div>
         </section>
 
         {/* Trigger / Scheduler */}
-        <section className="bg-white rounded-lg border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-1">Automation Trigger</h2>
-          <p className="text-xs text-gray-400 mb-4">How often the scheduler picks the next recipe for processing</p>
+        <section className="card p-6">
+          <div className="flex items-center gap-2 mb-1">
+            <Clock className="w-4 h-4" style={{ color: 'var(--primary-400)' }} />
+            <h2 className="text-lg font-semibold" style={{ color: 'var(--text-100)' }}>Automation Trigger</h2>
+          </div>
+          <p className="text-xs mb-4" style={{ color: 'var(--text-500)' }}>
+            How often the scheduler picks the next recipe for processing
+          </p>
           <div className="space-y-4">
             <div className="flex items-center gap-3">
               <input id="trigger_enabled" name="trigger_enabled" type="checkbox" checked={form.trigger_enabled} onChange={handleChange}
-                className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                className="h-4 w-4 rounded focus:ring-2"
+                style={{ accentColor: 'var(--primary-500)' }}
               />
-              <label htmlFor="trigger_enabled" className="text-sm font-medium text-gray-700">Enable automation</label>
+              <label htmlFor="trigger_enabled" className="text-sm font-medium" style={{ color: 'var(--text-200)' }}>
+                Enable automation
+              </label>
             </div>
             <div>
-              <label htmlFor="trigger_interval" className="block text-sm font-medium text-gray-700 mb-1">Interval</label>
+              <label htmlFor="trigger_interval" className="label">Interval</label>
               <select id="trigger_interval" name="trigger_interval" value={form.trigger_interval} onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                className="input"
               >
                 <option value="disabled">Disabled</option>
                 <option value="3h">Every 3 hours</option>
@@ -196,29 +262,36 @@ export default function ProjectSettingsPage() {
               </select>
             </div>
             {project.last_trigger_at && (
-              <p className="text-xs text-gray-400">Last trigger: {new Date(project.last_trigger_at).toLocaleString()}</p>
+              <p className="text-xs" style={{ color: 'var(--text-500)' }}>
+                Last trigger: {new Date(project.last_trigger_at).toLocaleString()}
+              </p>
             )}
           </div>
         </section>
 
         {/* Content Generation */}
-        <section className="bg-white rounded-lg border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-1">Content Generation</h2>
-          <p className="text-xs text-gray-400 mb-4">Categories and authors passed to the Content Writer API. Format: Name (id), Name (id)</p>
+        <section className="card p-6">
+          <div className="flex items-center gap-2 mb-1">
+            <FileText className="w-4 h-4" style={{ color: 'var(--primary-400)' }} />
+            <h2 className="text-lg font-semibold" style={{ color: 'var(--text-100)' }}>Content Generation</h2>
+          </div>
+          <p className="text-xs mb-4" style={{ color: 'var(--text-500)' }}>
+            Categories and authors passed to the Content Writer API. Format: Name (id), Name (id)
+          </p>
           <div className="space-y-4">
             <div>
-              <label htmlFor="content_categories" className="block text-sm font-medium text-gray-700 mb-1">Categories</label>
+              <label htmlFor="content_categories" className="label">Categories</label>
               <textarea id="content_categories" name="content_categories" value={form.content_categories} onChange={handleChange}
                 rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="input"
                 placeholder="Dinner (5), Desserts (12), Breakfast (3)"
               />
             </div>
             <div>
-              <label htmlFor="content_authors" className="block text-sm font-medium text-gray-700 mb-1">Authors</label>
+              <label htmlFor="content_authors" className="label">Authors</label>
               <textarea id="content_authors" name="content_authors" value={form.content_authors} onChange={handleChange}
                 rows={2}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="input"
                 placeholder="John (1), Jane (2)"
               />
             </div>
@@ -226,185 +299,221 @@ export default function ProjectSettingsPage() {
         </section>
 
         {/* Image Prompt Template */}
-        <section className="bg-white rounded-lg border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-1">Image Generation Prompt</h2>
-          <p className="text-xs text-gray-400 mb-4">
-            Midjourney prompt template. Use <code className="bg-gray-100 px-1 rounded text-gray-600">{'{title}'}</code> for the recipe name
-            and <code className="bg-gray-100 px-1 rounded text-gray-600">{'{image}'}</code> for the spy reference image URL from the sheet.
+        <section className="card p-6">
+          <div className="flex items-center gap-2 mb-1">
+            <Image className="w-4 h-4" style={{ color: 'var(--primary-400)' }} />
+            <h2 className="text-lg font-semibold" style={{ color: 'var(--text-100)' }}>Image Generation Prompt</h2>
+          </div>
+          <p className="text-xs mb-4" style={{ color: 'var(--text-500)' }}>
+            Midjourney prompt template. Use <code className="px-1 rounded text-xs" style={{ background: 'var(--bg-600)', color: 'var(--text-300)' }}>{'{title}'}</code> for the recipe name
+            and <code className="px-1 rounded text-xs" style={{ background: 'var(--bg-600)', color: 'var(--text-300)' }}>{'{image}'}</code> for the spy reference image URL.
           </p>
           <div>
-            <label htmlFor="image_prompt_template" className="block text-sm font-medium text-gray-700 mb-1">Prompt Template</label>
+            <label htmlFor="image_prompt_template" className="label">Prompt Template</label>
             <textarea id="image_prompt_template" name="image_prompt_template" value={form.image_prompt_template} onChange={handleChange}
               rows={3}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono text-sm"
+              className="input font-mono text-sm"
               placeholder="{image} {title}, food photography, professional, high quality, appetizing, 4k --ar 16:9"
             />
-            <p className="text-xs text-gray-400 mt-1">Leave blank to use the default prompt shown above.</p>
+            <p className="text-xs mt-1" style={{ color: 'var(--text-500)' }}>Leave blank to use the default prompt shown above.</p>
           </div>
         </section>
 
         {/* Pin Design Config */}
-        <section className="bg-white rounded-lg border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-1">Pin Design Config</h2>
-          <p className="text-xs text-gray-400 mb-4">
-            JSON configuration sent to the Pin Designer service. Controls text styling, layout, fonts, colors, etc.
-            The <code className="bg-gray-100 px-1 rounded text-gray-600">topImageUrl</code>,{' '}
-            <code className="bg-gray-100 px-1 rounded text-gray-600">bottomImageUrl</code>, and{' '}
-            <code className="bg-gray-100 px-1 rounded text-gray-600">recipeTitle</code> are set automatically from the pipeline.
+        <section className="card p-6">
+          <div className="flex items-center gap-2 mb-1">
+            <Palette className="w-4 h-4" style={{ color: 'var(--primary-400)' }} />
+            <h2 className="text-lg font-semibold" style={{ color: 'var(--text-100)' }}>Pin Design Config</h2>
+          </div>
+          <p className="text-xs mb-4" style={{ color: 'var(--text-500)' }}>
+            JSON configuration for the Pin Designer service. <code className="px-1 rounded text-xs" style={{ background: 'var(--bg-600)', color: 'var(--text-300)' }}>topImageUrl</code>, <code className="px-1 rounded text-xs" style={{ background: 'var(--bg-600)', color: 'var(--text-300)' }}>bottomImageUrl</code>, and <code className="px-1 rounded text-xs" style={{ background: 'var(--bg-600)', color: 'var(--text-300)' }}>recipeTitle</code> are set automatically.
           </p>
           <div>
-            <label htmlFor="pin_design_config" className="block text-sm font-medium text-gray-700 mb-1">Design JSON</label>
+            <label htmlFor="pin_design_config" className="label">Design JSON</label>
             <textarea id="pin_design_config" name="pin_design_config" value={form.pin_design_config} onChange={handleChange}
-              rows={12}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono text-xs"
-              placeholder='{&#10;  "smartLayoutOptions": { "line1FontSize": 70 },&#10;  "textOptions": { "fontFamily": "Comic Sans MS", "fontSize": 80 },&#10;  "topTags": []&#10;}'
+              rows={10}
+              className="input font-mono text-xs"
+              placeholder={'{\n  "smartLayoutOptions": { "line1FontSize": 70 },\n  "textOptions": { "fontFamily": "Comic Sans MS", "fontSize": 80 },\n  "topTags": []\n}'}
             />
-            <p className="text-xs text-gray-400 mt-1">Leave blank to use Pin Designer defaults. Must be valid JSON.</p>
+            <p className="text-xs mt-1" style={{ color: 'var(--text-500)' }}>Leave blank to use Pin Designer defaults. Must be valid JSON.</p>
           </div>
         </section>
 
-        <button type="submit" disabled={saving}
-          className="w-full py-2 px-4 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50 cursor-pointer">
-          {saving ? 'Saving...' : 'Save Settings'}
+        <button type="submit" disabled={saving} className="btn btn-primary w-full">
+          {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</> : 'Save Settings'}
         </button>
       </form>
 
       {/* WP Categories */}
-      <section className="bg-white rounded-lg border border-gray-200 p-6 mt-8">
-        <div className="flex justify-between items-center mb-3">
-          <h2 className="text-lg font-semibold text-gray-900">WordPress Categories</h2>
-          <button onClick={handleFetchCategories} disabled={fetchingCats}
-            className="px-3 py-1.5 text-sm bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 disabled:opacity-50 cursor-pointer">
-            {fetchingCats ? 'Fetching...' : 'Fetch Categories'}
+      <section className="card p-6 mt-8">
+        <div className="flex justify-between items-center mb-4">
+          <div className="flex items-center gap-2">
+            <FolderTree className="w-4 h-4" style={{ color: 'var(--primary-400)' }} />
+            <h2 className="text-lg font-semibold" style={{ color: 'var(--text-100)' }}>WordPress Categories</h2>
+          </div>
+          <button onClick={handleFetchCategories} disabled={fetchingCats} className="btn btn-secondary text-sm">
+            {fetchingCats ? <><Loader2 className="w-4 h-4 animate-spin" /> Fetching...</> : <><RefreshCw className="w-4 h-4" /> Fetch</>}
           </button>
         </div>
         {categories.length > 0 ? (
           <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead><tr className="border-b border-gray-200 text-left text-gray-500">
-                <th className="py-2 pr-4">Name</th><th className="py-2 pr-4">Slug</th><th className="py-2">Count</th>
-              </tr></thead>
+            <table className="w-full text-sm">
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--bg-600)', color: 'var(--text-400)' }}>
+                  <th className="py-2 pr-4 text-left font-medium">Name</th>
+                  <th className="py-2 pr-4 text-left font-medium">Slug</th>
+                  <th className="py-2 text-left font-medium">Count</th>
+                </tr>
+              </thead>
               <tbody>
                 {categories.map((c) => (
-                  <tr key={c.id} className="border-b border-gray-50">
-                    <td className="py-1.5 pr-4 text-gray-900">{c.name}</td>
-                    <td className="py-1.5 pr-4 text-gray-500">{c.slug}</td>
-                    <td className="py-1.5 text-gray-500">{c.count}</td>
+                  <tr key={c.id} style={{ borderBottom: '1px solid var(--bg-700)' }}>
+                    <td className="py-2 pr-4" style={{ color: 'var(--text-100)' }}>{c.name}</td>
+                    <td className="py-2 pr-4" style={{ color: 'var(--text-400)' }}>{c.slug}</td>
+                    <td className="py-2" style={{ color: 'var(--text-400)' }}>{c.count}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         ) : (
-          <p className="text-sm text-gray-400">No categories fetched yet. Click "Fetch Categories" to pull from WordPress.</p>
+          <p className="text-sm" style={{ color: 'var(--text-500)' }}>No categories fetched yet. Click "Fetch" to pull from WordPress.</p>
         )}
       </section>
 
       {/* Pinboards */}
-      <section className="bg-white rounded-lg border border-gray-200 p-6 mt-6 mb-8">
-        <div className="flex justify-between items-center mb-3">
-          <h2 className="text-lg font-semibold text-gray-900">Pinterest Boards</h2>
-          <button onClick={handleFetchBoards} disabled={fetchingBoards}
-            className="px-3 py-1.5 text-sm bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 disabled:opacity-50 cursor-pointer">
-            {fetchingBoards ? 'Fetching...' : 'Fetch Boards'}
+      <section className="card p-6 mt-6">
+        <div className="flex justify-between items-center mb-4">
+          <div className="flex items-center gap-2">
+            <Layout className="w-4 h-4" style={{ color: 'var(--primary-400)' }} />
+            <h2 className="text-lg font-semibold" style={{ color: 'var(--text-100)' }}>Pinterest Boards</h2>
+          </div>
+          <button onClick={handleFetchBoards} disabled={fetchingBoards} className="btn btn-secondary text-sm">
+            {fetchingBoards ? <><Loader2 className="w-4 h-4 animate-spin" /> Fetching...</> : <><RefreshCw className="w-4 h-4" /> Fetch</>}
           </button>
         </div>
         {boards.length > 0 ? (
           <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead><tr className="border-b border-gray-200 text-left text-gray-500">
-                <th className="py-2 pr-4">Name</th><th className="py-2 pr-4">Slug</th><th className="py-2">Recipes</th>
-              </tr></thead>
+            <table className="w-full text-sm">
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--bg-600)', color: 'var(--text-400)' }}>
+                  <th className="py-2 pr-4 text-left font-medium">Name</th>
+                  <th className="py-2 pr-4 text-left font-medium">Slug</th>
+                  <th className="py-2 text-left font-medium">Recipes</th>
+                </tr>
+              </thead>
               <tbody>
                 {boards.map((b) => (
-                  <tr key={b.id} className="border-b border-gray-50">
-                    <td className="py-1.5 pr-4 text-gray-900">{b.name}</td>
-                    <td className="py-1.5 pr-4 text-gray-500">{b.slug}</td>
-                    <td className="py-1.5 text-gray-500">{b.recipe_count ?? '—'}</td>
+                  <tr key={b.id} style={{ borderBottom: '1px solid var(--bg-700)' }}>
+                    <td className="py-2 pr-4" style={{ color: 'var(--text-100)' }}>{b.name}</td>
+                    <td className="py-2 pr-4" style={{ color: 'var(--text-400)' }}>{b.slug}</td>
+                    <td className="py-2" style={{ color: 'var(--text-400)' }}>{b.recipe_count ?? '—'}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         ) : (
-          <p className="text-sm text-gray-400">No boards fetched yet. Click "Fetch Boards" to pull from the Pinboards plugin.</p>
+          <p className="text-sm" style={{ color: 'var(--text-500)' }}>No boards fetched yet. Click "Fetch" to pull from the Pinboards plugin.</p>
         )}
       </section>
 
       {/* Authors */}
-      <section className="bg-white rounded-lg border border-gray-200 p-6 mt-6">
-        <div className="flex justify-between items-center mb-3">
-          <h2 className="text-lg font-semibold text-gray-900">WordPress Authors</h2>
-          <button onClick={handleFetchAuthors} disabled={fetchingAuthors}
-            className="px-3 py-1.5 text-sm bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 disabled:opacity-50 cursor-pointer">
-            {fetchingAuthors ? 'Fetching...' : 'Fetch Authors'}
+      <section className="card p-6 mt-6">
+        <div className="flex justify-between items-center mb-4">
+          <div className="flex items-center gap-2">
+            <Users className="w-4 h-4" style={{ color: 'var(--primary-400)' }} />
+            <h2 className="text-lg font-semibold" style={{ color: 'var(--text-100)' }}>WordPress Authors</h2>
+          </div>
+          <button onClick={handleFetchAuthors} disabled={fetchingAuthors} className="btn btn-secondary text-sm">
+            {fetchingAuthors ? <><Loader2 className="w-4 h-4 animate-spin" /> Fetching...</> : <><RefreshCw className="w-4 h-4" /> Fetch</>}
           </button>
         </div>
         {authors.length > 0 ? (
           <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead><tr className="border-b border-gray-200 text-left text-gray-500">
-                <th className="py-2 pr-4">ID</th><th className="py-2 pr-4">Name</th><th className="py-2">Slug</th>
-              </tr></thead>
+            <table className="w-full text-sm">
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--bg-600)', color: 'var(--text-400)' }}>
+                  <th className="py-2 pr-4 text-left font-medium">ID</th>
+                  <th className="py-2 pr-4 text-left font-medium">Name</th>
+                  <th className="py-2 text-left font-medium">Slug</th>
+                </tr>
+              </thead>
               <tbody>
                 {authors.map((a) => (
-                  <tr key={a.id} className="border-b border-gray-50">
-                    <td className="py-1.5 pr-4 text-gray-500">{a.id}</td>
-                    <td className="py-1.5 pr-4 text-gray-900">{a.name}</td>
-                    <td className="py-1.5 text-gray-500">{a.slug}</td>
+                  <tr key={a.id} style={{ borderBottom: '1px solid var(--bg-700)' }}>
+                    <td className="py-2 pr-4" style={{ color: 'var(--text-400)' }}>{a.id}</td>
+                    <td className="py-2 pr-4" style={{ color: 'var(--text-100)' }}>{a.name}</td>
+                    <td className="py-2" style={{ color: 'var(--text-400)' }}>{a.slug}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         ) : (
-          <p className="text-sm text-gray-400">No authors fetched yet. Click "Fetch Authors" to pull from WordPress.</p>
+          <p className="text-sm" style={{ color: 'var(--text-500)' }}>No authors fetched yet. Click "Fetch" to pull from WordPress.</p>
         )}
       </section>
 
       {/* Recipes */}
-      <section className="bg-white rounded-lg border border-gray-200 p-6 mt-6 mb-8">
-        <div className="flex justify-between items-center mb-3">
-          <div>
-            <h2 className="text-lg font-semibold text-gray-900">Recipes</h2>
-            <p className="text-xs text-gray-400">{recipes.length} total</p>
+      <section className="card p-6 mt-6 mb-8">
+        <div className="flex justify-between items-center mb-4">
+          <div className="flex items-center gap-2">
+            <ChefHat className="w-4 h-4" style={{ color: 'var(--primary-400)' }} />
+            <h2 className="text-lg font-semibold" style={{ color: 'var(--text-100)' }}>Recipes</h2>
+            <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'var(--bg-600)', color: 'var(--text-400)' }}>
+              {recipes.length} total
+            </span>
           </div>
-          <button onClick={handleSyncSheet} disabled={syncing || !project.google_sheet_url}
-            className="px-3 py-1.5 text-sm bg-indigo-100 border border-indigo-300 text-indigo-700 rounded-md hover:bg-indigo-200 disabled:opacity-50 cursor-pointer">
-            {syncing ? 'Syncing...' : 'Sync Sheet'}
+          <button onClick={handleSyncSheet} disabled={syncing || !project.google_sheet_url} className="btn btn-primary text-sm">
+            {syncing ? <><Loader2 className="w-4 h-4 animate-spin" /> Syncing...</> : <><RefreshCw className="w-4 h-4" /> Sync Sheet</>}
           </button>
         </div>
         {syncResult && (
-          <div className="mb-3 p-2 bg-blue-50 border border-blue-200 rounded text-xs text-blue-700">
+          <div 
+            className="mb-4 p-2 rounded text-xs flex items-center gap-2"
+            style={{ background: 'rgba(99, 102, 241, 0.1)', border: '1px solid rgba(99, 102, 241, 0.3)', color: 'var(--primary-300)' }}
+          >
             Sheet: {syncResult.total_in_sheet} rows | Imported: {syncResult.imported} | Skipped: {syncResult.already_existed}
           </div>
         )}
         {recipes.length > 0 ? (
           <div className="overflow-x-auto max-h-96 overflow-y-auto">
-            <table className="min-w-full text-sm">
-              <thead className="sticky top-0 bg-white"><tr className="border-b border-gray-200 text-left text-gray-500">
-                <th className="py-2 pr-4">Title</th><th className="py-2 pr-4">Status</th><th className="py-2">Created</th>
-              </tr></thead>
+            <table className="w-full text-sm">
+              <thead className="sticky top-0" style={{ background: 'var(--bg-700)' }}>
+                <tr style={{ borderBottom: '1px solid var(--bg-600)', color: 'var(--text-400)' }}>
+                  <th className="py-2 pr-4 text-left font-medium">Title</th>
+                  <th className="py-2 pr-4 text-left font-medium">Status</th>
+                  <th className="py-2 text-left font-medium">Created</th>
+                </tr>
+              </thead>
               <tbody>
                 {recipes.map((r) => (
-                  <tr key={r.id} className="border-b border-gray-50">
-                    <td className="py-1.5 pr-4 text-gray-900 max-w-xs truncate">{r.title}</td>
-                    <td className="py-1.5 pr-4">
-                      <span className={`inline-block px-2 py-0.5 text-xs rounded-full ${
-                        r.status === 'completed' ? 'bg-green-100 text-green-700' :
-                        r.status === 'processing' ? 'bg-yellow-100 text-yellow-700' :
-                        r.status === 'failed' ? 'bg-red-100 text-red-700' :
-                        'bg-gray-100 text-gray-600'
-                      }`}>{r.status}</span>
+                  <tr key={r.id} style={{ borderBottom: '1px solid var(--bg-700)' }}>
+                    <td className="py-2 pr-4 max-w-xs truncate" style={{ color: 'var(--text-100)' }}>{r.title}</td>
+                    <td className="py-2 pr-4">
+                      <span 
+                        className="inline-block px-2 py-0.5 text-xs rounded-full"
+                        style={{ 
+                          background: `color-mix(in srgb, ${getRecipeStatusColor(r.status)} 15%, transparent)`,
+                          color: getRecipeStatusColor(r.status)
+                        }}
+                      >
+                        {r.status}
+                      </span>
                     </td>
-                    <td className="py-1.5 text-gray-500 text-xs">{new Date(r.createdAt).toLocaleDateString()}</td>
+                    <td className="py-2 text-xs" style={{ color: 'var(--text-500)' }}>
+                      {new Date(r.createdAt).toLocaleDateString()}
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         ) : (
-          <p className="text-sm text-gray-400">No recipes yet. Configure a Google Sheet URL and click "Sync Sheet" to import.</p>
+          <p className="text-sm" style={{ color: 'var(--text-500)' }}>
+            No recipes yet. Configure a Google Sheet URL and click "Sync Sheet" to import.
+          </p>
         )}
       </section>
     </div>

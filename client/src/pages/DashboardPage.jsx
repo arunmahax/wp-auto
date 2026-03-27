@@ -3,29 +3,54 @@ import { Link } from 'react-router-dom';
 import client from '../api/client';
 import JobStatusBadge from '../components/JobStatusBadge';
 import PipelineTracker from '../components/PipelineTracker';
+import {
+  LayoutDashboard,
+  Zap,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  FolderKanban,
+  Plus,
+  RotateCcw,
+  ChevronDown,
+  ChevronUp,
+  ExternalLink,
+  Loader2,
+  Inbox,
+  Activity
+} from 'lucide-react';
 
 const TABS = [
-  { key: 'overview', label: 'Overview', icon: '📊' },
-  { key: 'running', label: 'Running', icon: '⚡' },
-  { key: 'completed', label: 'Completed', icon: '✅' },
-  { key: 'failed', label: 'Failed', icon: '❌' },
+  { key: 'overview', label: 'Overview', icon: LayoutDashboard },
+  { key: 'running', label: 'Running', icon: Zap },
+  { key: 'completed', label: 'Completed', icon: CheckCircle2 },
+  { key: 'failed', label: 'Failed', icon: XCircle },
 ];
 
-function StatCard({ label, value, color, icon }) {
-  const colorMap = {
-    indigo: 'bg-indigo-50 text-indigo-700 border-indigo-200',
-    blue: 'bg-blue-50 text-blue-700 border-blue-200',
-    green: 'bg-green-50 text-green-700 border-green-200',
-    red: 'bg-red-50 text-red-700 border-red-200',
-    amber: 'bg-amber-50 text-amber-700 border-amber-200',
+function StatCard({ label, value, icon: Icon, variant = 'default' }) {
+  const variants = {
+    default: { iconBg: 'var(--bg-700)', iconColor: 'var(--text-300)', glow: 'none' },
+    primary: { iconBg: 'rgba(99, 102, 241, 0.2)', iconColor: 'var(--primary-400)', glow: 'var(--glow-primary)' },
+    success: { iconBg: 'rgba(5, 150, 105, 0.2)', iconColor: 'var(--success-400)', glow: 'var(--glow-success)' },
+    warning: { iconBg: 'rgba(217, 119, 6, 0.2)', iconColor: 'var(--warning-400)', glow: 'none' },
+    danger: { iconBg: 'rgba(220, 38, 38, 0.2)', iconColor: 'var(--error-400)', glow: 'var(--glow-error)' },
   };
+  const v = variants[variant];
+
   return (
-    <div className={`rounded-lg border p-4 ${colorMap[color]}`}>
-      <div className="flex items-center justify-between">
-        <span className="text-2xl">{icon}</span>
-        <span className="text-2xl font-bold">{value}</span>
+    <div className="stat-card group">
+      <div className="flex items-start justify-between">
+        <div 
+          className="w-10 h-10 rounded-lg flex items-center justify-center transition-transform group-hover:scale-110"
+          style={{ background: v.iconBg }}
+        >
+          <Icon className="w-5 h-5" style={{ color: v.iconColor }} />
+        </div>
+        <div className="text-right">
+          <div className="stat-value">{value}</div>
+          <div className="stat-label">{label}</div>
+        </div>
       </div>
-      <div className="mt-1 text-sm font-medium opacity-80">{label}</div>
     </div>
   );
 }
@@ -42,9 +67,10 @@ function TimeAgo({ date }) {
 
 function JobRow({ job, onRetry, onExpand, expanded, retrying }) {
   return (
-    <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+    <div className="card overflow-hidden animate-slide-up">
       <div
-        className="p-4 flex items-center gap-4 cursor-pointer hover:bg-gray-50 transition-colors"
+        className="p-4 flex items-center gap-4 cursor-pointer transition-colors"
+        style={{ background: expanded ? 'var(--bg-700)' : 'transparent' }}
         onClick={() => onExpand(job.id)}
       >
         {/* Status */}
@@ -55,22 +81,28 @@ function JobRow({ job, onRetry, onExpand, expanded, retrying }) {
           <div className="flex items-center gap-2">
             <Link
               to={`/projects/${job.project_id}`}
-              className="text-sm font-semibold text-indigo-600 hover:text-indigo-500"
+              className="text-sm font-semibold transition-colors"
+              style={{ color: 'var(--primary-400)' }}
               onClick={(e) => e.stopPropagation()}
             >
               {job.project_name}
             </Link>
             {job.pipeline_step && (
-              <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded">
+              <span 
+                className="text-xs px-2 py-0.5 rounded"
+                style={{ background: 'var(--bg-700)', color: 'var(--text-400)' }}
+              >
                 {job.pipeline_step}
               </span>
             )}
           </div>
-          <div className="text-sm text-gray-700 truncate mt-0.5">
+          <div className="text-sm truncate mt-0.5" style={{ color: 'var(--text-200)' }}>
             {job.recipe_title || 'Waiting for recipe...'}
           </div>
           {job.status === 'failed' && job.error_message && (
-            <div className="text-xs text-red-500 mt-1 truncate">{job.error_message}</div>
+            <div className="text-xs mt-1 truncate" style={{ color: 'var(--error-400)' }}>
+              {job.error_message}
+            </div>
           )}
         </div>
 
@@ -80,9 +112,11 @@ function JobRow({ job, onRetry, onExpand, expanded, retrying }) {
             href={job.published_url}
             target="_blank"
             rel="noopener noreferrer"
-            className="hidden sm:inline-flex text-xs text-emerald-600 hover:text-emerald-500 underline"
+            className="hidden sm:inline-flex items-center gap-1 text-xs transition-colors"
+            style={{ color: 'var(--success-400)' }}
             onClick={(e) => e.stopPropagation()}
           >
+            <ExternalLink className="w-3 h-3" />
             View Post
           </a>
         )}
@@ -92,24 +126,34 @@ function JobRow({ job, onRetry, onExpand, expanded, retrying }) {
           <button
             onClick={(e) => { e.stopPropagation(); onRetry(job); }}
             disabled={retrying}
-            className="px-3 py-1.5 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-md hover:bg-amber-100 disabled:opacity-50 cursor-pointer whitespace-nowrap"
+            className="btn btn-sm"
+            style={{ 
+              background: 'rgba(217, 119, 6, 0.2)', 
+              color: 'var(--warning-400)',
+              border: '1px solid rgba(217, 119, 6, 0.3)'
+            }}
           >
-            {retrying ? '...' : '↻ Retry'}
+            {retrying ? <Loader2 className="w-3 h-3 animate-spin" /> : <RotateCcw className="w-3 h-3" />}
+            <span className="hidden sm:inline">Retry</span>
           </button>
         )}
 
         {/* Time */}
-        <div className="text-xs text-gray-400 whitespace-nowrap">
+        <div className="text-xs whitespace-nowrap" style={{ color: 'var(--text-500)' }}>
           <TimeAgo date={job.createdAt} />
         </div>
 
         {/* Expand arrow */}
-        <span className="text-gray-400 text-xs">{expanded ? '▲' : '▼'}</span>
+        {expanded ? (
+          <ChevronUp className="w-4 h-4" style={{ color: 'var(--text-400)' }} />
+        ) : (
+          <ChevronDown className="w-4 h-4" style={{ color: 'var(--text-400)' }} />
+        )}
       </div>
 
       {/* Expanded: PipelineTracker */}
       {expanded && (
-        <div className="px-4 pb-4 border-t border-gray-100">
+        <div className="px-4 pb-4 border-t" style={{ borderColor: 'var(--glass-border)' }}>
           <PipelineTracker
             projectId={job.project_id}
             job={job}
@@ -167,10 +211,7 @@ export default function DashboardPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <svg className="animate-spin h-8 w-8 text-indigo-500" viewBox="0 0 24 24">
-          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-        </svg>
+        <Loader2 className="w-8 h-8 animate-spin" style={{ color: 'var(--primary-500)' }} />
       </div>
     );
   }
@@ -202,53 +243,64 @@ export default function DashboardPage() {
   return (
     <div>
       {/* Page header */}
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex justify-between items-start mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-          <p className="text-sm text-gray-500 mt-1">Monitor all pipelines across your projects</p>
+          <h1 className="text-2xl font-bold" style={{ color: 'var(--text-50)' }}>Dashboard</h1>
+          <p className="text-sm mt-1" style={{ color: 'var(--text-400)' }}>
+            Monitor all pipelines across your projects
+          </p>
         </div>
-        <Link
-          to="/projects/new"
-          className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 text-sm font-medium"
-        >
-          + New Project
+        <Link to="/projects/new" className="btn btn-primary">
+          <Plus className="w-4 h-4" />
+          New Project
         </Link>
       </div>
 
       {error && (
-        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md text-sm text-red-700">{error}</div>
+        <div 
+          className="mb-6 p-4 rounded-lg border text-sm"
+          style={{ background: 'rgba(220, 38, 38, 0.1)', borderColor: 'var(--error-500)', color: 'var(--error-400)' }}
+        >
+          {error}
+        </div>
       )}
 
       {/* Stats cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
-        <StatCard label="Projects" value={stats.projects} color="indigo" icon="📁" />
-        <StatCard label="Running" value={stats.running} color="blue" icon="⚡" />
-        <StatCard label="Completed" value={stats.completed} color="green" icon="✅" />
-        <StatCard label="Failed" value={stats.failed} color="red" icon="❌" />
-        <StatCard label="Queued Recipes" value={stats.queued} color="amber" icon="📋" />
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
+        <StatCard label="Projects" value={stats.projects} icon={FolderKanban} variant="primary" />
+        <StatCard label="Running" value={stats.running} icon={Zap} variant="warning" />
+        <StatCard label="Completed" value={stats.completed} icon={CheckCircle2} variant="success" />
+        <StatCard label="Failed" value={stats.failed} icon={XCircle} variant="danger" />
+        <StatCard label="Queued" value={stats.queued} icon={Clock} variant="default" />
       </div>
 
       {/* Tabs */}
-      <div className="border-b border-gray-200 mb-4">
+      <div className="border-b mb-6" style={{ borderColor: 'var(--glass-border)' }}>
         <nav className="flex gap-0 -mb-px">
           {TABS.map((t) => {
             const isActive = tab === t.key;
             const count = tabCounts[t.key];
+            const Icon = t.icon;
             return (
               <button
                 key={t.key}
                 onClick={() => setTab(t.key)}
-                className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors cursor-pointer whitespace-nowrap ${
-                  isActive
-                    ? 'border-indigo-500 text-indigo-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
+                className="px-4 py-3 text-sm font-medium border-b-2 transition-colors cursor-pointer whitespace-nowrap flex items-center gap-2"
+                style={{
+                  borderColor: isActive ? 'var(--primary-500)' : 'transparent',
+                  color: isActive ? 'var(--primary-400)' : 'var(--text-400)'
+                }}
               >
-                {t.icon} {t.label}
+                <Icon className="w-4 h-4" />
+                {t.label}
                 {count !== undefined && count > 0 && (
-                  <span className={`ml-1.5 px-1.5 py-0.5 text-xs rounded-full ${
-                    isActive ? 'bg-indigo-100 text-indigo-600' : 'bg-gray-100 text-gray-500'
-                  }`}>
+                  <span 
+                    className="ml-1 px-2 py-0.5 text-xs rounded-full"
+                    style={{ 
+                      background: isActive ? 'rgba(99, 102, 241, 0.2)' : 'var(--bg-700)',
+                      color: isActive ? 'var(--primary-400)' : 'var(--text-400)'
+                    }}
+                  >
                     {count}
                   </span>
                 )}
@@ -262,16 +314,26 @@ export default function DashboardPage() {
       {tab === 'overview' && (
         <div>
           {/* Projects quick list */}
-          <div className="mb-6">
-            <div className="flex justify-between items-center mb-3">
-              <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Your Projects</h2>
-              <Link to="/projects/new" className="text-xs text-indigo-600 hover:text-indigo-500">+ Add project</Link>
+          <div className="mb-8">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-sm font-semibold uppercase tracking-wider" style={{ color: 'var(--text-400)' }}>
+                Your Projects
+              </h2>
+              <Link 
+                to="/projects/new" 
+                className="text-xs flex items-center gap-1 transition-colors"
+                style={{ color: 'var(--primary-400)' }}
+              >
+                <Plus className="w-3 h-3" />
+                Add project
+              </Link>
             </div>
             {stats.projects === 0 ? (
-              <div className="text-center py-8 bg-white rounded-lg border border-gray-200 text-gray-500 text-sm">
-                No projects yet.{' '}
-                <Link to="/projects/new" className="text-indigo-600 underline">Create one</Link>
-              </div>
+              <EmptyState 
+                message="No projects yet." 
+                action={<Link to="/projects/new" className="text-gradient underline">Create one</Link>}
+                icon={FolderKanban}
+              />
             ) : (
               <ProjectQuickList projects={data?.projects || []} jobs={allJobs} />
             )}
@@ -279,11 +341,16 @@ export default function DashboardPage() {
 
           {/* Recent activity */}
           <div>
-            <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-3">Recent Activity</h2>
+            <h2 className="text-sm font-semibold uppercase tracking-wider mb-4" style={{ color: 'var(--text-400)' }}>
+              Recent Activity
+            </h2>
             {visibleJobs.length === 0 ? (
-              <EmptyState message="No pipeline activity yet. Run a pipeline from one of your projects." />
+              <EmptyState 
+                message="No pipeline activity yet. Run a pipeline from one of your projects." 
+                icon={Activity}
+              />
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {visibleJobs.map((job) => (
                   <JobRow
                     key={job.id}
@@ -303,9 +370,9 @@ export default function DashboardPage() {
       {tab === 'running' && (
         <div>
           {runningJobs.length === 0 ? (
-            <EmptyState message="No pipelines are currently running." icon="⚡" />
+            <EmptyState message="No pipelines are currently running." icon={Zap} />
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-3">
               {runningJobs.map((job) => (
                 <JobRow
                   key={job.id}
@@ -324,9 +391,9 @@ export default function DashboardPage() {
       {tab === 'completed' && (
         <div>
           {completedJobs.length === 0 ? (
-            <EmptyState message="No completed pipelines yet." icon="✅" />
+            <EmptyState message="No completed pipelines yet." icon={CheckCircle2} />
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-3">
               {completedJobs.map((job) => (
                 <JobRow
                   key={job.id}
@@ -345,13 +412,21 @@ export default function DashboardPage() {
       {tab === 'failed' && (
         <div>
           {failedJobs.length === 0 ? (
-            <EmptyState message="No failed pipelines. Everything is running smoothly!" icon="🎉" />
+            <EmptyState message="No failed pipelines. Everything is running smoothly!" icon={CheckCircle2} />
           ) : (
             <>
-              <div className="mb-3 px-3 py-2 bg-red-50 border border-red-200 rounded-md text-xs text-red-700">
-                {failedJobs.length} failed pipeline{failedJobs.length > 1 ? 's' : ''}. Click "Retry" to re-run from the beginning.
+              <div 
+                className="mb-4 p-3 rounded-lg border text-xs flex items-center gap-2"
+                style={{ 
+                  background: 'rgba(220, 38, 38, 0.1)', 
+                  borderColor: 'rgba(220, 38, 38, 0.3)',
+                  color: 'var(--error-400)'
+                }}
+              >
+                <XCircle className="w-4 h-4" />
+                {failedJobs.length} failed pipeline{failedJobs.length > 1 ? 's' : ''}. Click "Retry" to re-run.
               </div>
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {failedJobs.map((job) => (
                   <JobRow
                     key={job.id}
@@ -386,20 +461,56 @@ function ProjectQuickList({ projects, jobs }) {
   if (projects.length === 0) return null;
 
   return (
-    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {projects.map((p) => {
         const c = countMap[p.id] || { running: 0, completed: 0, failed: 0 };
+        const total = c.running + c.completed + c.failed;
+        const progress = total > 0 ? Math.round((c.completed / total) * 100) : 0;
+        
         return (
           <Link
             key={p.id}
             to={`/projects/${p.id}`}
-            className="bg-white border border-gray-200 rounded-lg p-3 hover:shadow-md transition-shadow block"
+            className="card card-hover p-4 block"
           >
-            <div className="text-sm font-semibold text-gray-900 truncate">{p.name}</div>
-            <div className="flex gap-3 mt-2 text-xs">
-              {c.running > 0 && <span className="text-blue-600">⚡ {c.running} running</span>}
-              <span className="text-green-600">✅ {c.completed}</span>
-              {c.failed > 0 && <span className="text-red-600">❌ {c.failed}</span>}
+            <div className="flex items-start justify-between mb-3">
+              <div 
+                className="w-10 h-10 rounded-lg flex items-center justify-center"
+                style={{ background: 'var(--bg-700)' }}
+              >
+                <FolderKanban className="w-5 h-5" style={{ color: 'var(--primary-400)' }} />
+              </div>
+              {c.running > 0 && (
+                <span className="status-dot status-dot-running" />
+              )}
+            </div>
+            
+            <div className="text-sm font-semibold truncate mb-1" style={{ color: 'var(--text-100)' }}>
+              {p.name}
+            </div>
+            
+            {/* Progress bar */}
+            <div className="progress-bar mb-3">
+              <div 
+                className="progress-fill progress-fill-success"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+            
+            <div className="flex gap-4 text-xs">
+              {c.running > 0 && (
+                <span className="flex items-center gap-1" style={{ color: 'var(--warning-400)' }}>
+                  <Zap className="w-3 h-3" /> {c.running}
+                </span>
+              )}
+              <span className="flex items-center gap-1" style={{ color: 'var(--success-400)' }}>
+                <CheckCircle2 className="w-3 h-3" /> {c.completed}
+              </span>
+              {c.failed > 0 && (
+                <span className="flex items-center gap-1" style={{ color: 'var(--error-400)' }}>
+                  <XCircle className="w-3 h-3" /> {c.failed}
+                </span>
+              )}
             </div>
           </Link>
         );
@@ -408,11 +519,18 @@ function ProjectQuickList({ projects, jobs }) {
   );
 }
 
-function EmptyState({ message, icon = '📭' }) {
+function EmptyState({ message, icon: Icon = Inbox, action }) {
   return (
-    <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
-      <div className="text-4xl mb-3">{icon}</div>
-      <p className="text-gray-500 text-sm">{message}</p>
+    <div className="card text-center py-12 px-6">
+      <div 
+        className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4"
+        style={{ background: 'var(--bg-700)' }}
+      >
+        <Icon className="w-7 h-7" style={{ color: 'var(--text-500)' }} />
+      </div>
+      <p className="text-sm" style={{ color: 'var(--text-400)' }}>
+        {message} {action}
+      </p>
     </div>
   );
 }
