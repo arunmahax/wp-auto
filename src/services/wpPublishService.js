@@ -323,6 +323,29 @@ function formatNotesHtml(notes, allergies) {
   return parts.join('\n');
 }
 
+// ─── Yield/Servings Formatting ──────────────────────────────────────────────
+
+/**
+ * Format yield/servings for schema.org recipeYield.
+ * Pinterest expects formats like "6 servings", "Serves 6", or "Makes 12 cookies".
+ */
+function formatYield(servings) {
+  if (!servings) return '';
+  const str = String(servings).trim();
+  if (!str) return '';
+  
+  // If it already has text ("6 servings", "Serves 4-6", "Makes 12"), keep as-is
+  if (/[a-zA-Z]/.test(str)) return str;
+  
+  // If it's just a number, add "servings" suffix
+  const num = parseInt(str, 10);
+  if (!isNaN(num)) {
+    return `${num} ${num === 1 ? 'serving' : 'servings'}`;
+  }
+  
+  return str;
+}
+
 // ─── Nutrition Helpers ──────────────────────────────────────────────────────
 
 /**
@@ -684,6 +707,16 @@ async function createTastyRecipe(client, parentPostId, article) {
   // Format notes as HTML list for proper rendering
   const notesHtml = formatNotesHtml(article.notes, article.allergies);
 
+  // Format category - capitalize first letter for proper display
+  const formattedCategory = article.category 
+    ? article.category.charAt(0).toUpperCase() + article.category.slice(1).toLowerCase()
+    : '';
+  
+  // Format cuisine - capitalize first letter for proper display  
+  const formattedCuisine = article.cuisine
+    ? article.cuisine.charAt(0).toUpperCase() + article.cuisine.slice(1).toLowerCase()
+    : '';
+
   const payload = {
     title: article.shortTitle || article.title,
     content: article.description || '',
@@ -695,14 +728,16 @@ async function createTastyRecipe(client, parentPostId, article) {
       description: article.description ? `<p>${article.description}</p>` : '',
       ingredients: ingredientsHtml,
       instructions: instructionsHtml,
+      equipment: equipmentHtml || '',
       prep_time: formatTimeDisplay(article.prepTime),
       cook_time: formatTimeDisplay(article.cookTime),
       total_time: formatTimeDisplay(article.totalTime),
-      yield: article.servings,
-      category: article.category,
-      cuisine: article.cuisine,
+      yield: formatYield(article.servings),
+      category: formattedCategory,
+      cuisine: formattedCuisine,
       notes: notesHtml,
       keywords: article.tags || '',
+      // Nutrition - schema.org expects proper units
       calories: appendNutritionUnit(article.calories, 'calories'),
       fat: appendNutritionUnit(article.fat, 'fat'),
       protein: appendNutritionUnit(article.protein, 'protein'),
