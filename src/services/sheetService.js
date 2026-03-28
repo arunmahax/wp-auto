@@ -100,6 +100,7 @@ async function syncSheet(projectId, userId) {
       title: row.title,
       image1: row.image1,
       image2: row.image2,
+      source: 'sheet',
     });
     created.push(recipe.toJSON());
   }
