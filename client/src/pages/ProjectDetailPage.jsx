@@ -27,7 +27,10 @@ import {
   FolderKanban,
   ListFilter,
   Activity,
-  Inbox
+  Inbox,
+  Rss,
+  Plus,
+  Check
 } from 'lucide-react';
 
 const PIPELINE_STEP_LABELS = {
@@ -121,6 +124,7 @@ function NextRunCountdown({ automation }) {
 const TABS = [
   { key: 'kanban', label: 'Pipeline', icon: FolderKanban },
   { key: 'recipes', label: 'All Recipes', icon: FileText },
+  { key: 'spy', label: 'Recipe Spy', icon: Rss },
   { key: 'activity', label: 'Activity', icon: Activity },
 ];
 
@@ -146,6 +150,12 @@ export default function ProjectDetailPage() {
   const [deleteProject, setDeleteProject] = useState(false);
   const [deleteJobTarget, setDeleteJobTarget] = useState(null);
   const [retryingId, setRetryingId] = useState(null);
+
+  // Spy state
+  const [spyItems, setSpyItems] = useState([]);
+  const [spyLoading, setSpyLoading] = useState(false);
+  const [selectedSpyItems, setSelectedSpyItems] = useState(new Set());
+  const [addingToQueue, setAddingToQueue] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
@@ -251,6 +261,61 @@ export default function ProjectDetailPage() {
       setError(err.response?.data?.error || 'Retry failed');
     } finally {
       setRetryingId(null);
+    }
+  };
+
+  // Spy handlers
+  const fetchSpyData = async () => {
+    setSpyLoading(true);
+    setError('');
+    setSpyItems([]);
+    setSelectedSpyItems(new Set());
+    try {
+      const { data } = await client.get(`/projects/${id}/spy/fetch`);
+      setSpyItems(data.items || []);
+      if (data.items?.length === 0) {
+        setError('No new recipes found. Configure RSS feeds in project settings.');
+      }
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to fetch spy data');
+    } finally {
+      setSpyLoading(false);
+    }
+  };
+
+  const toggleSpyItem = (idx) => {
+    setSelectedSpyItems((prev) => {
+      const next = new Set(prev);
+      if (next.has(idx)) next.delete(idx);
+      else next.add(idx);
+      return next;
+    });
+  };
+
+  const selectAllSpyItems = () => {
+    if (selectedSpyItems.size === spyItems.length) {
+      setSelectedSpyItems(new Set());
+    } else {
+      setSelectedSpyItems(new Set(spyItems.map((_, i) => i)));
+    }
+  };
+
+  const addSpyToQueue = async () => {
+    if (selectedSpyItems.size === 0) return;
+    setAddingToQueue(true);
+    setError('');
+    try {
+      const itemsToAdd = [...selectedSpyItems].map((i) => spyItems[i]);
+      const { data } = await client.post(`/projects/${id}/spy/add`, { items: itemsToAdd });
+      setError(`Added ${data.added} recipes to queue`);
+      // Remove added items from spy list
+      setSpyItems((prev) => prev.filter((_, i) => !selectedSpyItems.has(i)));
+      setSelectedSpyItems(new Set());
+      await fetchData();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to add to queue');
+    } finally {
+      setAddingToQueue(false);
     }
   };
 
@@ -527,6 +592,20 @@ export default function ProjectDetailPage() {
               runningRecipeId={runningRecipeId}
               handleRunRecipe={handleRunRecipe}
               onSelectRecipe={setSelectedRecipe}
+            />
+          )}
+
+          {activeTab === 'spy' && (
+            <SpyTab
+              spyItems={spyItems}
+              spyLoading={spyLoading}
+              selectedSpyItems={selectedSpyItems}
+              toggleSpyItem={toggleSpyItem}
+              selectAllSpyItems={selectAllSpyItems}
+              fetchSpyData={fetchSpyData}
+              addSpyToQueue={addSpyToQueue}
+              addingToQueue={addingToQueue}
+              project={project}
             />
           )}
           
@@ -944,6 +1023,168 @@ function RecipeModal({ recipe, onClose, onRun, runningRecipeId }) {
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+/* ── Spy Tab ── */
+function SpyTab({ spyItems, spyLoading, selectedSpyItems, toggleSpyItem, selectAllSpyItems, fetchSpyData, addSpyToQueue, addingToQueue, project }) {
+  const hasFeeds = project?.rss_feeds?.length > 0;
+  
+  return (
+    <div>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={fetchSpyData}
+            disabled={spyLoading || !hasFeeds}
+            className="btn-primary flex items-center gap-2"
+          >
+            {spyLoading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Rss className="w-4 h-4" />
+            )}
+            {spyLoading ? 'Fetching...' : 'Fetch Latest'}
+          </button>
+          {spyItems.length > 0 && (
+            <>
+              <button
+                onClick={selectAllSpyItems}
+                className="btn-secondary text-sm"
+              >
+                {selectedSpyItems.size === spyItems.length ? 'Deselect All' : 'Select All'}
+              </button>
+              <span className="text-xs" style={{ color: 'var(--text-400)' }}>
+                {selectedSpyItems.size} of {spyItems.length} selected
+              </span>
+            </>
+          )}
+        </div>
+        {selectedSpyItems.size > 0 && (
+          <button
+            onClick={addSpyToQueue}
+            disabled={addingToQueue}
+            className="btn-success flex items-center gap-2"
+          >
+            {addingToQueue ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Plus className="w-4 h-4" />
+            )}
+            Add {selectedSpyItems.size} to Queue
+          </button>
+        )}
+      </div>
+
+      {/* No feeds configured */}
+      {!hasFeeds && (
+        <div className="text-center py-12">
+          <Rss className="w-12 h-12 mx-auto mb-3" style={{ color: 'var(--text-500)' }} />
+          <p className="text-sm" style={{ color: 'var(--text-400)' }}>No RSS feeds configured</p>
+          <p className="text-xs mt-1" style={{ color: 'var(--text-500)' }}>
+            Add competitor RSS feeds in project settings to discover new recipes
+          </p>
+        </div>
+      )}
+
+      {/* Loading state */}
+      {spyLoading && (
+        <div className="flex items-center justify-center py-12 gap-3">
+          <Loader2 className="w-6 h-6 animate-spin" style={{ color: 'var(--primary-500)' }} />
+          <span style={{ color: 'var(--text-400)' }}>Fetching recipes from {project?.rss_feeds?.length || 0} feeds...</span>
+        </div>
+      )}
+
+      {/* Empty state after fetch */}
+      {!spyLoading && hasFeeds && spyItems.length === 0 && (
+        <div className="text-center py-12">
+          <Inbox className="w-12 h-12 mx-auto mb-3" style={{ color: 'var(--text-500)' }} />
+          <p className="text-sm" style={{ color: 'var(--text-400)' }}>No new recipes found</p>
+          <p className="text-xs mt-1" style={{ color: 'var(--text-500)' }}>
+            Click "Fetch Latest" to check your RSS feeds for new recipes
+          </p>
+        </div>
+      )}
+
+      {/* Results grid */}
+      {!spyLoading && spyItems.length > 0 && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {spyItems.map((item, idx) => {
+            const isSelected = selectedSpyItems.has(idx);
+            return (
+              <div
+                key={idx}
+                onClick={() => toggleSpyItem(idx)}
+                className="spy-card relative rounded-xl overflow-hidden cursor-pointer transition-all"
+                style={{
+                  background: 'var(--bg-800)',
+                  border: isSelected ? '2px solid var(--primary-500)' : '2px solid transparent',
+                  boxShadow: isSelected ? '0 0 0 3px rgba(99, 102, 241, 0.2)' : 'none'
+                }}
+              >
+                {/* Selection indicator */}
+                <div
+                  className="absolute top-3 right-3 z-10 w-6 h-6 rounded-full flex items-center justify-center transition-all"
+                  style={{
+                    background: isSelected ? 'var(--primary-500)' : 'rgba(0,0,0,0.5)',
+                    border: isSelected ? 'none' : '2px solid rgba(255,255,255,0.3)'
+                  }}
+                >
+                  {isSelected && <Check className="w-4 h-4 text-white" />}
+                </div>
+
+                {/* Image */}
+                <div className="aspect-video overflow-hidden" style={{ background: 'var(--bg-700)' }}>
+                  {item.image ? (
+                    <img
+                      src={item.image}
+                      alt={item.title}
+                      className="w-full h-full object-cover"
+                      onError={(e) => { e.target.style.display = 'none'; }}
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <Image className="w-8 h-8" style={{ color: 'var(--text-500)' }} />
+                    </div>
+                  )}
+                </div>
+
+                {/* Content */}
+                <div className="p-3">
+                  <h4 className="font-medium text-sm line-clamp-2 mb-2" style={{ color: 'var(--text-100)' }}>
+                    {item.title}
+                  </h4>
+                  <div className="flex items-center justify-between">
+                    <span 
+                      className="text-xs px-2 py-0.5 rounded-full"
+                      style={{ 
+                        background: 'rgba(99, 102, 241, 0.15)', 
+                        color: 'var(--primary-400)' 
+                      }}
+                    >
+                      {item.domain}
+                    </span>
+                    {item.url && (
+                      <a
+                        href={item.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="text-xs opacity-60 hover:opacity-100"
+                        style={{ color: 'var(--text-400)' }}
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

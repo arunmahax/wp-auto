@@ -15,6 +15,23 @@ const Recipe = sequelize.define('Recipe', {
     type: DataTypes.STRING(500),
     allowNull: false,
   },
+  // Source tracking
+  source: {
+    type: DataTypes.STRING(20),
+    allowNull: false,
+    defaultValue: 'manual',
+    validate: {
+      isIn: [['manual', 'sheet', 'competitor']],
+    },
+  },
+  spy_source_url: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+  },
+  spy_source_domain: {
+    type: DataTypes.STRING(255),
+    allowNull: true,
+  },
   // Source images from Google Sheet
   image1: {
     type: DataTypes.STRING(500),

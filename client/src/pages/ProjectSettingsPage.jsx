@@ -3,7 +3,8 @@ import { useParams, Link } from 'react-router-dom';
 import client from '../api/client';
 import { 
   ArrowLeft, Settings, FileSpreadsheet, Clock, FileText, Image, Palette, 
-  FolderTree, Layout, Users, ChefHat, RefreshCw, Loader2, XCircle, CheckCircle2 
+  FolderTree, Layout, Users, ChefHat, RefreshCw, Loader2, XCircle, CheckCircle2,
+  Rss, Plus, Trash2, Eye
 } from 'lucide-react';
 
 export default function ProjectSettingsPage() {
@@ -22,7 +23,14 @@ export default function ProjectSettingsPage() {
     content_authors: '',
     image_prompt_template: '',
     pin_design_config: '',
+    rss_feeds: [],
+    spy_keywords: [],
   });
+
+  const [newFeedUrl, setNewFeedUrl] = useState('');
+  const [newKeyword, setNewKeyword] = useState('');
+  const [suggestedFeeds, setSuggestedFeeds] = useState([]);
+  const [showSuggested, setShowSuggested] = useState(false);
 
   const [fetchingCats, setFetchingCats] = useState(false);
   const [fetchingBoards, setFetchingBoards] = useState(false);
@@ -35,8 +43,9 @@ export default function ProjectSettingsPage() {
     Promise.all([
       client.get(`/projects/${id}`),
       client.get(`/projects/${id}/recipes`),
+      client.get('/projects/spy/suggested-feeds'),
     ])
-      .then(([projRes, recipesRes]) => {
+      .then(([projRes, recipesRes, suggestedRes]) => {
         const data = projRes.data;
         setProject(data);
         setForm({
@@ -47,8 +56,11 @@ export default function ProjectSettingsPage() {
           content_authors: data.content_authors || '',
           image_prompt_template: data.image_prompt_template || '',
           pin_design_config: data.pin_design_config || '',
+          rss_feeds: data.rss_feeds || [],
+          spy_keywords: data.spy_keywords || [],
         });
         setRecipes(recipesRes.data);
+        setSuggestedFeeds(suggestedRes.data.feeds || []);
       })
       .catch(() => setError('Failed to load project'))
       .finally(() => setLoading(false));
@@ -57,6 +69,49 @@ export default function ProjectSettingsPage() {
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     setForm((prev) => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
+  };
+
+  // RSS Feed management
+  const addFeed = () => {
+    if (!newFeedUrl.trim()) return;
+    try {
+      new URL(newFeedUrl); // Validate URL
+      if (form.rss_feeds.includes(newFeedUrl.trim())) {
+        setError('This feed is already added');
+        return;
+      }
+      setForm((prev) => ({ ...prev, rss_feeds: [...prev.rss_feeds, newFeedUrl.trim()] }));
+      setNewFeedUrl('');
+      setError('');
+    } catch {
+      setError('Please enter a valid URL');
+    }
+  };
+
+  const removeFeed = (url) => {
+    setForm((prev) => ({ ...prev, rss_feeds: prev.rss_feeds.filter(f => f !== url) }));
+  };
+
+  const addSuggestedFeed = (url) => {
+    if (!form.rss_feeds.includes(url)) {
+      setForm((prev) => ({ ...prev, rss_feeds: [...prev.rss_feeds, url] }));
+    }
+  };
+
+  // Keyword management
+  const addKeyword = () => {
+    if (!newKeyword.trim()) return;
+    if (form.spy_keywords.includes(newKeyword.trim().toLowerCase())) {
+      setError('This keyword is already added');
+      return;
+    }
+    setForm((prev) => ({ ...prev, spy_keywords: [...prev.spy_keywords, newKeyword.trim().toLowerCase()] }));
+    setNewKeyword('');
+    setError('');
+  };
+
+  const removeKeyword = (kw) => {
+    setForm((prev) => ({ ...prev, spy_keywords: prev.spy_keywords.filter(k => k !== kw) }));
   };
 
   const handleSave = async (e) => {
@@ -227,6 +282,140 @@ export default function ProjectSettingsPage() {
               placeholder="https://docs.google.com/spreadsheets/d/..."
             />
           </div>
+        </section>
+
+        {/* RSS Spy Feeds */}
+        <section className="card p-6">
+          <div className="flex items-center gap-2 mb-1">
+            <Rss className="w-4 h-4" style={{ color: 'var(--primary-400)' }} />
+            <h2 className="text-lg font-semibold" style={{ color: 'var(--text-100)' }}>Competitor RSS Feeds</h2>
+          </div>
+          <p className="text-xs mb-4" style={{ color: 'var(--text-500)' }}>
+            Add RSS feeds from competitor recipe sites. Use the Spy tab to fetch and import recipes.
+          </p>
+          
+          {/* Add feed input */}
+          <div className="flex gap-2 mb-4">
+            <input
+              type="url"
+              value={newFeedUrl}
+              onChange={(e) => setNewFeedUrl(e.target.value)}
+              className="input flex-1"
+              placeholder="https://example.com/feed/"
+              onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addFeed())}
+            />
+            <button type="button" onClick={addFeed} className="btn btn-secondary">
+              <Plus className="w-4 h-4" />
+              Add
+            </button>
+          </div>
+
+          {/* Current feeds */}
+          {form.rss_feeds.length > 0 && (
+            <div className="space-y-2 mb-4">
+              {form.rss_feeds.map((url) => (
+                <div 
+                  key={url} 
+                  className="flex items-center justify-between p-2 rounded-lg"
+                  style={{ background: 'var(--bg-700)' }}
+                >
+                  <span className="text-sm truncate flex-1" style={{ color: 'var(--text-200)' }}>{url}</span>
+                  <button 
+                    type="button" 
+                    onClick={() => removeFeed(url)}
+                    className="p-1 rounded hover:bg-red-500/20 transition-colors ml-2"
+                    style={{ color: 'var(--error-400)' }}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Suggested feeds */}
+          <div>
+            <button 
+              type="button" 
+              onClick={() => setShowSuggested(!showSuggested)}
+              className="text-sm flex items-center gap-1 cursor-pointer hover:opacity-80"
+              style={{ color: 'var(--primary-400)' }}
+            >
+              <Eye className="w-4 h-4" />
+              {showSuggested ? 'Hide' : 'Show'} suggested feeds
+            </button>
+            
+            {showSuggested && suggestedFeeds.length > 0 && (
+              <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {suggestedFeeds.map((feed) => (
+                  <button
+                    key={feed.url}
+                    type="button"
+                    onClick={() => addSuggestedFeed(feed.url)}
+                    disabled={form.rss_feeds.includes(feed.url)}
+                    className="p-2 rounded-lg text-left text-sm transition-all cursor-pointer disabled:opacity-50"
+                    style={{ 
+                      background: form.rss_feeds.includes(feed.url) ? 'var(--bg-600)' : 'var(--bg-700)',
+                      color: 'var(--text-200)',
+                      border: '1px solid var(--glass-border)'
+                    }}
+                  >
+                    <div className="font-medium">{feed.name}</div>
+                    <div className="text-xs" style={{ color: 'var(--text-500)' }}>{feed.category}</div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* Spy Keywords Filter */}
+        <section className="card p-6">
+          <div className="flex items-center gap-2 mb-1">
+            <FileText className="w-4 h-4" style={{ color: 'var(--primary-400)' }} />
+            <h2 className="text-lg font-semibold" style={{ color: 'var(--text-100)' }}>Spy Keywords Filter</h2>
+          </div>
+          <p className="text-xs mb-4" style={{ color: 'var(--text-500)' }}>
+            Optional: Only show recipes containing these keywords (e.g., chicken, pasta, dinner). Leave empty to show all.
+          </p>
+          
+          {/* Add keyword input */}
+          <div className="flex gap-2 mb-4">
+            <input
+              type="text"
+              value={newKeyword}
+              onChange={(e) => setNewKeyword(e.target.value)}
+              className="input flex-1"
+              placeholder="chicken, pasta, etc."
+              onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addKeyword())}
+            />
+            <button type="button" onClick={addKeyword} className="btn btn-secondary">
+              <Plus className="w-4 h-4" />
+              Add
+            </button>
+          </div>
+
+          {/* Current keywords */}
+          {form.spy_keywords.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {form.spy_keywords.map((kw) => (
+                <span 
+                  key={kw}
+                  className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm"
+                  style={{ background: 'rgba(99, 102, 241, 0.2)', color: 'var(--primary-400)' }}
+                >
+                  {kw}
+                  <button 
+                    type="button" 
+                    onClick={() => removeKeyword(kw)}
+                    className="hover:text-red-400 transition-colors"
+                  >
+                    <XCircle className="w-4 h-4" />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
         </section>
 
         {/* Trigger / Scheduler */}

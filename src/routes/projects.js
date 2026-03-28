@@ -2,11 +2,12 @@ const { Router } = require('express');
 const projectController = require('../controllers/projectController');
 const wpFetchController = require('../controllers/wpFetchController');
 const sheetController = require('../controllers/sheetController');
+const rssSpyService = require('../services/rssSpyService');
 const auth = require('../middleware/auth');
 const validate = require('../middleware/validate');
 const { createProjectSchema, updateProjectSchema } = require('../validators/projectValidator');
 const scheduler = require('../services/scheduler');
-const { Recipe, Job } = require('../models');
+const { Recipe, Job, Project } = require('../models');
 
 const router = Router();
 
@@ -174,6 +175,120 @@ router.get('/:id/jobs/:jobId/pipeline', async (req, res, next) => {
       } : null,
       createdAt: job.createdAt,
       updatedAt: job.updatedAt,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ── RSS SPY ENDPOINTS ──
+
+// Get suggested RSS feeds
+router.get('/spy/suggested-feeds', (req, res) => {
+  res.json({ feeds: rssSpyService.SUGGESTED_FEEDS });
+});
+
+// Fetch spy data from project's RSS feeds
+router.get('/:id/spy/fetch', async (req, res, next) => {
+  try {
+    const project = await Project.findByPk(req.params.id);
+    if (!project || project.user_id !== req.user.id) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+
+    const rssFeeds = project.rss_feeds || [];
+    if (rssFeeds.length === 0) {
+      return res.json({ 
+        items: [], 
+        errors: [], 
+        message: 'No RSS feeds configured. Add feeds in project settings.' 
+      });
+    }
+
+    // Get existing recipe titles for deduplication
+    const existingRecipes = await Recipe.findAll({
+      where: { project_id: req.params.id },
+      attributes: ['title'],
+    });
+    const existingTitles = existingRecipes.map(r => r.title);
+
+    // Get keywords filter (optional)
+    const keywords = project.spy_keywords || [];
+
+    // Fetch all feeds
+    const { items, errors } = await rssSpyService.fetchAllFeeds(rssFeeds, existingTitles, keywords);
+
+    res.json({
+      items,
+      errors,
+      totalFeeds: rssFeeds.length,
+      totalItems: items.length,
+      skippedDuplicates: errors.length === 0 ? null : undefined,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Add selected spy items to recipes queue
+router.post('/:id/spy/add', async (req, res, next) => {
+  try {
+    const project = await Project.findByPk(req.params.id);
+    if (!project || project.user_id !== req.user.id) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+
+    const { items } = req.body;
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: 'No items provided' });
+    }
+
+    // Validate and dedupe against existing recipes
+    const existingRecipes = await Recipe.findAll({
+      where: { project_id: req.params.id },
+      attributes: ['title'],
+    });
+    const existingTitles = new Set(
+      existingRecipes.map(r => r.title.toLowerCase().replace(/[^a-z0-9]/g, ''))
+    );
+
+    const created = [];
+    const skipped = [];
+
+    for (const item of items) {
+      if (!item.title) continue;
+
+      const normalizedTitle = item.title.toLowerCase().replace(/[^a-z0-9]/g, '');
+      if (existingTitles.has(normalizedTitle)) {
+        skipped.push(item.title);
+        continue;
+      }
+
+      // Create recipe with competitor source
+      const recipe = await Recipe.create({
+        project_id: req.params.id,
+        title: item.title,
+        source: 'competitor',
+        spy_source_url: item.link || null,
+        spy_source_domain: item.domain || null,
+        featured_image: item.image || null,
+        status: 'new',
+      });
+
+      created.push({
+        id: recipe.id,
+        title: recipe.title,
+        source: recipe.source,
+      });
+
+      // Mark as used to avoid duplicates within this batch
+      existingTitles.add(normalizedTitle);
+    }
+
+    res.json({
+      created,
+      skipped,
+      message: `Added ${created.length} recipes${skipped.length > 0 ? `, skipped ${skipped.length} duplicates` : ''}`,
     });
   } catch (err) {
     next(err);

@@ -77,6 +77,29 @@ const Project = sequelize.define('Project', {
     type: DataTypes.DATE,
     allowNull: true,
   },
+  // RSS feeds for competitor spy
+  rss_feeds: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+    get() {
+      const val = this.getDataValue('rss_feeds');
+      return val ? JSON.parse(val) : [];
+    },
+    set(val) {
+      this.setDataValue('rss_feeds', val ? JSON.stringify(val) : null);
+    },
+  },
+  spy_keywords: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+    get() {
+      const val = this.getDataValue('spy_keywords');
+      return val ? JSON.parse(val) : [];
+    },
+    set(val) {
+      this.setDataValue('spy_keywords', val ? JSON.stringify(val) : null);
+    },
+  },
 }, {
   tableName: 'projects',
 });

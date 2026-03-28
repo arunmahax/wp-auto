@@ -12,7 +12,10 @@ async function start() {
     await sequelize.authenticate();
     console.log('Database connected.');
 
+    // SQLite needs foreign keys disabled during alter operations
+    await sequelize.query('PRAGMA foreign_keys = OFF;');
     await sequelize.sync({ alter: true });
+    await sequelize.query('PRAGMA foreign_keys = ON;');
     console.log('Models synced.');
 
     // Start automation scheduler for all active projects
