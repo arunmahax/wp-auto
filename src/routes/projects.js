@@ -197,11 +197,13 @@ router.get('/:id/spy/fetch', async (req, res, next) => {
     }
 
     const rssFeeds = project.rss_feeds || [];
+    console.log(`[Spy] Project ${req.params.id} has ${rssFeeds.length} RSS feeds configured`);
+    
     if (rssFeeds.length === 0) {
       return res.json({ 
         items: [], 
         errors: [], 
-        message: 'No RSS feeds configured. Add feeds in project settings.' 
+        message: 'No RSS feeds configured. Add feeds in project settings and click Save.' 
       });
     }
 
