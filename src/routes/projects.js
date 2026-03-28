@@ -216,16 +216,22 @@ router.get('/:id/spy/fetch', async (req, res, next) => {
 
     // Get keywords filter (optional)
     const keywords = project.spy_keywords || [];
+    console.log(`[Spy] Keywords filter: ${keywords.length > 0 ? keywords.join(', ') : '(none)'}`);
+    console.log(`[Spy] Existing recipes to skip: ${existingTitles.length}`);
 
     // Fetch all feeds
-    const { items, errors } = await rssSpyService.fetchAllFeeds(rssFeeds, existingTitles, keywords);
+    const { items, errors, stats } = await rssSpyService.fetchAllFeeds(rssFeeds, existingTitles, keywords);
+
+    console.log(`[Spy] Result: ${items.length} items, ${errors.length} feed errors`);
+    if (stats) console.log(`[Spy] Stats: ${JSON.stringify(stats)}`);
 
     res.json({
       items,
       errors,
       totalFeeds: rssFeeds.length,
       totalItems: items.length,
-      skippedDuplicates: errors.length === 0 ? null : undefined,
+      keywords: keywords.length > 0 ? keywords : null,
+      stats,
     });
   } catch (err) {
     next(err);

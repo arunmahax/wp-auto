@@ -156,6 +156,7 @@ export default function ProjectDetailPage() {
   const [spyLoading, setSpyLoading] = useState(false);
   const [selectedSpyItems, setSelectedSpyItems] = useState(new Set());
   const [addingToQueue, setAddingToQueue] = useState(false);
+  const [spyStats, setSpyStats] = useState(null);
 
   const fetchData = useCallback(async () => {
     try {
@@ -270,11 +271,22 @@ export default function ProjectDetailPage() {
     setError('');
     setSpyItems([]);
     setSelectedSpyItems(new Set());
+    setSpyStats(null);
     try {
       const { data } = await client.get(`/projects/${id}/spy/fetch`);
       setSpyItems(data.items || []);
-      if (data.items?.length === 0) {
-        setError('No new recipes found. Configure RSS feeds in project settings.');
+      setSpyStats(data.stats || null);
+      if (data.items?.length === 0 && data.stats) {
+        const s = data.stats;
+        if (s.skippedKeyword > 0 && s.totalFromFeeds > 0) {
+          setError(`Found ${s.totalFromFeeds} recipes but ${s.skippedKeyword} filtered by keywords. Try removing keyword filters.`);
+        } else if (s.skippedExisting > 0) {
+          setError(`All ${s.skippedExisting} recipes already exist in your queue.`);
+        } else if (s.feedsFailed > 0 && s.feedsSucceeded === 0) {
+          setError(`All ${s.feedsFailed} feeds failed to fetch. Check feed URLs.`);
+        } else {
+          setError('No new recipes found.');
+        }
       }
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to fetch spy data');

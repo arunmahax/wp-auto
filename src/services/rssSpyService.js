@@ -115,7 +115,7 @@ async function fetchFeed(feedUrl) {
  */
 async function fetchAllFeeds(feedUrls, existingTitles = [], keywords = []) {
   if (!feedUrls || feedUrls.length === 0) {
-    return { items: [], errors: [] };
+    return { items: [], errors: [], stats: null };
   }
 
   // Normalize existing titles for comparison
@@ -129,6 +129,13 @@ async function fetchAllFeeds(feedUrls, existingTitles = [], keywords = []) {
   const allItems = [];
   const errors = [];
   const seenTitles = new Set();
+  
+  // Stats for debugging
+  let totalFromFeeds = 0;
+  let skippedNoImage = 0;
+  let skippedDuplicate = 0;
+  let skippedExisting = 0;
+  let skippedKeyword = 0;
 
   for (const result of results) {
     if (!result.success) {
@@ -136,18 +143,29 @@ async function fetchAllFeeds(feedUrls, existingTitles = [], keywords = []) {
       continue;
     }
 
+    totalFromFeeds += result.items.length;
+
     for (const item of result.items) {
       // Normalize title for dedup
       const normalizedTitle = item.title.toLowerCase().replace(/[^a-z0-9]/g, '');
 
       // Skip duplicates within this fetch
-      if (seenTitles.has(normalizedTitle)) continue;
+      if (seenTitles.has(normalizedTitle)) {
+        skippedDuplicate++;
+        continue;
+      }
 
       // Skip if already exists in project recipes
-      if (normalizedExisting.has(normalizedTitle)) continue;
+      if (normalizedExisting.has(normalizedTitle)) {
+        skippedExisting++;
+        continue;
+      }
 
       // Skip if doesn't match keywords
-      if (!matchesKeywords(item.title, keywords)) continue;
+      if (!matchesKeywords(item.title, keywords)) {
+        skippedKeyword++;
+        continue;
+      }
 
       seenTitles.add(normalizedTitle);
       allItems.push(item);
@@ -157,7 +175,16 @@ async function fetchAllFeeds(feedUrls, existingTitles = [], keywords = []) {
   // Sort by publish date (newest first)
   allItems.sort((a, b) => b.pubDate - a.pubDate);
 
-  return { items: allItems, errors };
+  const stats = {
+    totalFromFeeds,
+    skippedDuplicate,
+    skippedExisting,
+    skippedKeyword,
+    feedsSucceeded: results.filter(r => r.success).length,
+    feedsFailed: errors.length,
+  };
+
+  return { items: allItems, errors, stats };
 }
 
 /**
