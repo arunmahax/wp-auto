@@ -337,18 +337,47 @@ function TemplateEditorPage() {
   // Calculate preview styles
   const previewScale = Math.min(350 / template.width, 500 / template.height);
   
+  // Compute layout positions (shared between preview elements)
+  const getLayoutPositions = () => {
+    const totalHeight = template.height * previewScale;
+    const textBarHeight = template.text_bar_enabled ? (template.text_bar_height * previewScale) : 0;
+    const availableHeight = totalHeight - textBarHeight;
+    const imageGap = (template.image_gap || 0) * previewScale;
+    
+    const topPct = template.top_image_height || 50;
+    const bottomPct = template.bottom_image_height || 50;
+    const topHeight = availableHeight * (topPct / 100);
+    const bottomHeight = availableHeight * (bottomPct / 100);
+    
+    let topY = 0, textBarY = 0, bottomY = 0;
+    if (template.text_bar_position === 'top') {
+      textBarY = 0;
+      topY = textBarHeight;
+      bottomY = topY + topHeight + imageGap;
+    } else if (template.text_bar_position === 'bottom') {
+      topY = 0;
+      bottomY = topHeight + imageGap;
+      textBarY = totalHeight - textBarHeight;
+    } else {
+      topY = 0;
+      textBarY = topHeight;
+      bottomY = topHeight + textBarHeight;
+    }
+    
+    return { totalHeight, textBarHeight, topHeight, bottomHeight, topY, textBarY, bottomY, imageGap };
+  };
+  
   const getTextBarStyle = () => {
     if (!template.text_bar_enabled) return { display: 'none' };
-    const height = `${template.text_bar_height * previewScale}px`;
-    const position = template.text_bar_position;
+    const layout = getLayoutPositions();
     return {
       position: 'absolute',
       left: 0,
       right: 0,
-      height,
+      top: layout.textBarY,
+      height: layout.textBarHeight,
       background: template.text_bar_color,
       opacity: template.text_bar_opacity,
-      ...(position === 'top' ? { top: 0 } : position === 'bottom' ? { bottom: 0 } : { top: '50%', transform: 'translateY(-50%)' })
     };
   };
   
@@ -356,18 +385,17 @@ function TemplateEditorPage() {
     if (!template.text_bar_enabled) {
       return { position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' };
     }
-    const height = `${template.text_bar_height * previewScale}px`;
-    const position = template.text_bar_position;
+    const layout = getLayoutPositions();
     return {
       position: 'absolute',
       left: 0,
       right: 0,
-      height,
+      top: layout.textBarY,
+      height: layout.textBarHeight,
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
       padding: '12px',
-      ...(position === 'top' ? { top: 0 } : position === 'bottom' ? { bottom: 0 } : { top: '50%', transform: 'translateY(-50%)' })
     };
   };
   
