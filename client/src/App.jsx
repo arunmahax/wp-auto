@@ -9,6 +9,8 @@ import ProjectFormPage from './pages/ProjectFormPage';
 import ProjectDetailPage from './pages/ProjectDetailPage';
 import SettingsPage from './pages/SettingsPage';
 import ProjectSettingsPage from './pages/ProjectSettingsPage';
+import TemplatesPage from './pages/TemplatesPage';
+import TemplateEditorPage from './pages/TemplateEditorPage';
 import NotFoundPage from './pages/NotFoundPage';
 
 export default function App() {
@@ -24,6 +26,9 @@ export default function App() {
             <Route path="/projects/:id" element={<ProjectDetailPage />} />
             <Route path="/projects/:id/edit" element={<ProjectFormPage />} />
             <Route path="/projects/:id/settings" element={<ProjectSettingsPage />} />
+            <Route path="/templates" element={<TemplatesPage />} />
+            <Route path="/templates/new" element={<TemplateEditorPage />} />
+            <Route path="/templates/:id/edit" element={<TemplateEditorPage />} />
             <Route path="/settings" element={<SettingsPage />} />
           </Route>
           <Route path="*" element={<NotFoundPage />} />

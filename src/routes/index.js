@@ -5,6 +5,7 @@ const jobRoutes = require('./jobs');
 const settingsRoutes = require('./settings');
 const dashboardRoutes = require('./dashboard');
 const imageProxyRoutes = require('./imageProxy');
+const templateRoutes = require('./templateRoutes');
 
 const router = Router();
 
@@ -14,5 +15,6 @@ router.use('/projects', projectRoutes);
 router.use('/projects', jobRoutes);
 router.use('/settings', settingsRoutes);
 router.use('/image-proxy', imageProxyRoutes);
+router.use('/templates', templateRoutes);
 
 module.exports = router;

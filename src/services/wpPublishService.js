@@ -10,6 +10,12 @@ const { decrypt } = require('./encryption');
 
 // ─── WordPress Client ───────────────────────────────────────────────────────
 
+/**
+ * Create an axios client configured for WordPress REST API.
+ * Uses Basic Auth with Application Passwords.
+ * 
+ * Timeout: 30 seconds (matches WordPress plugin http_request_timeout filter)
+ */
 function createWpClient(project) {
   const password = decrypt(project.wp_app_password);
   const token = Buffer.from(`${project.wp_username}:${password}`).toString('base64');
@@ -21,7 +27,9 @@ function createWpClient(project) {
       Authorization: `Basic ${token}`,
       'Content-Type': 'application/json',
     },
-    timeout: 30000,
+    timeout: 30000, // 30 seconds - matches WP plugin sar_custom_http_request_timeout
+    maxContentLength: Infinity,
+    maxBodyLength: Infinity,
   });
 }
 
@@ -162,23 +170,32 @@ function parseArticleResult(contentWriterResult) {
     prepTime: r.prepTime || r.prep_time || '',
     cookTime: r.cookTime || r.cook_time || '',
     totalTime: r.totalTime || r.total_time || '',
+    additionalTimeLabel: r.additionalTimeLabel || r.additional_time_label || '', // e.g., "Marinating Time"
+    additionalTimeValue: r.additionalTimeValue || r.additional_time_value || '', // e.g., "2 Hours"
     servings: r.servings || r.yield || '',
+    servingSize: r.servingSize || r.serving_size || '', // e.g., "1 cup"
     category: r.category || '',
     cuisine: r.cuisine || '',
+    method: r.method || r.cookingMethod || '', // e.g., "Baking", "Grilling"
+    diet: r.diet || r.dietaryInfo || '', // e.g., "Vegan", "Keto", "Gluten-Free"
     difficulty: r.difficulty || '',
     notes: r.notes || r.tips || '',
     allergies: r.allergies || '',
     equipment: r.equipment || '',
     tags: r.tags || '',
+    author: r.author || r.authorName || r.author_name || '', // Recipe author
+    videoUrl: r.videoUrl || r.video_url || '', // Video embed URL
     calories: extractNutrition('calories'),
     fat: extractNutrition('fat') || extractNutrition('totalFat'),
+    saturatedFat: extractNutrition('saturatedFat') || extractNutrition('saturated_fat'),
+    unsaturatedFat: extractNutrition('unsaturatedFat') || extractNutrition('unsaturated_fat'),
+    transFat: extractNutrition('transFat') || extractNutrition('trans_fat'),
     protein: extractNutrition('protein'),
     carbohydrates: extractNutrition('carbohydrates') || extractNutrition('carbs') || extractNutrition('totalCarbs'),
     fiber: extractNutrition('fiber'),
     sodium: extractNutrition('sodium'),
     sugar: extractNutrition('sugar'),
     cholesterol: extractNutrition('cholesterol'),
-    saturatedFat: extractNutrition('saturatedFat') || extractNutrition('saturated_fat'),
     images: r.images || {},
   };
 }
@@ -351,6 +368,8 @@ function formatYield(servings) {
 /**
  * Format nutrition value for Tasty Recipes schema.org output.
  * Schema.org expects format like "285 calories", "12g", "28g", etc.
+ * 
+ * Reference: https://schema.org/NutritionInformation
  */
 function appendNutritionUnit(value, field) {
   if (!value) return '';
@@ -370,6 +389,8 @@ function appendNutritionUnit(value, field) {
   // For schema.org, calories should be "XXX calories" 
   if (noUnitFields.includes(field)) return `${num} calories`;
   if (mgFields.includes(field)) return `${num}mg`;
+  
+  // All fat types, protein, carbs, fiber, sugar use grams
   return `${num}g`;
 }
 
@@ -698,6 +719,15 @@ async function publishArticle(project, article, wpImages) {
 /**
  * Create a Tasty Recipes custom post linked to the article.
  * Returns the Tasty Recipe post ID.
+ * 
+ * Full field reference (from tasty-recipes-seo-meta-integration.php):
+ * author_name, _thumbnail_id, description, ingredients, instructions,
+ * notes, keywords, nutrifox_id, video_url, prep_time,
+ * additional_time_label, additional_time_value, cook_time, total_time, yield,
+ * category, method, cuisine, diet, serving_size,
+ * calories, sugar, sodium, fat, saturated_fat,
+ * unsaturated_fat, trans_fat, carbohydrates, fiber, protein,
+ * cholesterol, _tasty_recipe_parents
  */
 async function createTastyRecipe(client, parentPostId, article) {
   const ingredientsHtml = formatIngredientsHtml(article.ingredients);
@@ -717,6 +747,16 @@ async function createTastyRecipe(client, parentPostId, article) {
     ? article.cuisine.charAt(0).toUpperCase() + article.cuisine.slice(1).toLowerCase()
     : '';
 
+  // Format cooking method (e.g., "Baking", "Grilling", "Stovetop")
+  const formattedMethod = article.method
+    ? article.method.charAt(0).toUpperCase() + article.method.slice(1).toLowerCase()
+    : '';
+
+  // Format diet type (e.g., "Vegan", "Gluten-Free", "Keto")
+  const formattedDiet = article.diet
+    ? article.diet.charAt(0).toUpperCase() + article.diet.slice(1).toLowerCase()
+    : '';
+
   const payload = {
     title: article.shortTitle || article.title,
     content: article.description || '',
@@ -724,29 +764,45 @@ async function createTastyRecipe(client, parentPostId, article) {
     parent: parentPostId,
     featured_media: article._featuredMediaId || undefined,
     meta: {
+      // Core fields
       _thumbnail_id: article._featuredMediaId ? String(article._featuredMediaId) : '',
+      _tasty_recipe_parents: String(parentPostId), // Link to parent post
+      author_name: article.author || '', // Recipe author name
       description: article.description ? `<p>${article.description}</p>` : '',
       ingredients: ingredientsHtml,
       instructions: instructionsHtml,
       equipment: equipmentHtml || '',
+      notes: notesHtml,
+      keywords: article.tags || '',
+      video_url: article.videoUrl || '', // Support video embedding
+      
+      // Time fields
       prep_time: formatTimeDisplay(article.prepTime),
       cook_time: formatTimeDisplay(article.cookTime),
       total_time: formatTimeDisplay(article.totalTime),
+      additional_time_label: article.additionalTimeLabel || '', // e.g., "Marinating Time"
+      additional_time_value: article.additionalTimeValue || '', // e.g., "2 Hours"
+      
+      // Classification fields
       yield: formatYield(article.servings),
+      serving_size: article.servingSize || '', // e.g., "1 cup", "2 slices"
       category: formattedCategory,
       cuisine: formattedCuisine,
-      notes: notesHtml,
-      keywords: article.tags || '',
+      method: formattedMethod, // Cooking method
+      diet: formattedDiet, // Dietary info for schema.org
+      
       // Nutrition - schema.org expects proper units
       calories: appendNutritionUnit(article.calories, 'calories'),
       fat: appendNutritionUnit(article.fat, 'fat'),
+      saturated_fat: appendNutritionUnit(article.saturatedFat, 'saturatedFat'),
+      unsaturated_fat: appendNutritionUnit(article.unsaturatedFat, 'unsaturatedFat'),
+      trans_fat: appendNutritionUnit(article.transFat, 'transFat'),
       protein: appendNutritionUnit(article.protein, 'protein'),
       carbohydrates: appendNutritionUnit(article.carbohydrates, 'carbohydrates'),
       fiber: appendNutritionUnit(article.fiber, 'fiber'),
       sodium: appendNutritionUnit(article.sodium, 'sodium'),
       sugar: appendNutritionUnit(article.sugar, 'sugar'),
       cholesterol: appendNutritionUnit(article.cholesterol, 'cholesterol'),
-      saturated_fat: appendNutritionUnit(article.saturatedFat, 'saturatedFat'),
     },
   };
 
@@ -756,27 +812,45 @@ async function createTastyRecipe(client, parentPostId, article) {
 
 // ─── SEO Metadata ───────────────────────────────────────────────────────────
 
+/**
+ * Add SEO metadata to a post.
+ * 
+ * IMPORTANT: Only send fields that are registered via register_post_meta()
+ * in the WordPress plugin (tasty-recipes-seo-meta-integration.php).
+ * 
+ * Registered fields:
+ * - Yoast: _yoast_wpseo_title, _yoast_wpseo_metadesc, _yoast_wpseo_focuskw
+ * - Rank Math: rank_math_title, rank_math_description, rank_math_focus_keyword
+ * 
+ * Fields NOT registered (do not send): _yoast_wpseo_meta_robots_*, rank_math_robots
+ */
 async function addSEOMetadata(client, postId, article, retries = 2) {
+  // Build clean SEO title with focus keyword and site branding
+  const seoTitle = article.seoTitle || article.title || '';
+  const seoDescription = article.seoDescription || article.description || '';
+  const focusKeyword = article.focusKeyword || article.shortTitle || '';
+  
+  // Only include registered meta fields - extras get silently ignored by WP
   const meta = {
-    _yoast_wpseo_title: article.seoTitle,
-    _yoast_wpseo_metadesc: article.seoDescription,
-    _yoast_wpseo_focuskw: article.focusKeyword,
-    _yoast_wpseo_meta_robots_noindex: '0',
-    _yoast_wpseo_meta_robots_nofollow: '0',
-    rank_math_title: article.title || article.seoTitle,
-    rank_math_description: article.seoDescription,
-    rank_math_focus_keyword: article.focusKeyword || article.shortTitle || '',
-    rank_math_robots: ['index', 'follow'],
+    // Yoast SEO fields
+    _yoast_wpseo_title: seoTitle,
+    _yoast_wpseo_metadesc: seoDescription,
+    _yoast_wpseo_focuskw: focusKeyword,
+    // Rank Math fields
+    rank_math_title: seoTitle,
+    rank_math_description: seoDescription,
+    rank_math_focus_keyword: focusKeyword,
   };
 
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
       await client.post(`/wp-json/wp/v2/posts/${postId}`, { meta });
-      console.log(`[WP Publish] SEO metadata added for post #${postId}`);
+      console.log(`[WP Publish] SEO metadata added for post #${postId} (focus: "${focusKeyword}")`);
       return;
     } catch (err) {
+      console.log(`[WP Publish] SEO metadata attempt ${attempt}/${retries} failed: ${err.message}`);
       if (attempt === retries) throw err;
-      await sleep(1000);
+      await sleep(1000 * attempt); // Exponential backoff
     }
   }
 }

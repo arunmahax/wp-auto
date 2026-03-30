@@ -6,7 +6,8 @@ import {
   Settings, 
   LogOut,
   ChevronRight,
-  Zap
+  Zap,
+  Palette
 } from 'lucide-react';
 
 export default function Layout() {
@@ -21,6 +22,7 @@ export default function Layout() {
 
   const navItems = [
     { path: '/', icon: LayoutDashboard, label: 'Dashboard', end: true },
+    { path: '/templates', icon: Palette, label: 'Templates' },
     { path: '/settings', icon: Settings, label: 'Settings' },
   ];
 

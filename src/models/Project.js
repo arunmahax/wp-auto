@@ -100,6 +100,11 @@ const Project = sequelize.define('Project', {
       this.setDataValue('spy_keywords', val ? JSON.stringify(val) : null);
     },
   },
+  // Template for pin generation
+  template_id: {
+    type: DataTypes.UUID,
+    allowNull: true,
+  },
 }, {
   tableName: 'projects',
 });

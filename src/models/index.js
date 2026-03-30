@@ -5,6 +5,7 @@ const Project = require('./Project');
 const Job = require('./Job');
 const UserSettings = require('./UserSettings');
 const Recipe = require('./Recipe');
+const Template = require('./Template');
 
 // Associations
 User.hasMany(Project, { foreignKey: 'user_id', onDelete: 'CASCADE' });
@@ -20,6 +21,14 @@ UserSettings.belongsTo(User, { foreignKey: 'user_id' });
 Project.hasMany(Recipe, { foreignKey: 'project_id', onDelete: 'CASCADE' });
 Recipe.belongsTo(Project, { foreignKey: 'project_id' });
 
+// Template associations
+User.hasMany(Template, { foreignKey: 'user_id', onDelete: 'CASCADE' });
+Template.belongsTo(User, { foreignKey: 'user_id' });
+
+// Project can have a default template
+Project.belongsTo(Template, { foreignKey: 'template_id', as: 'template' });
+Template.hasMany(Project, { foreignKey: 'template_id' });
+
 module.exports = {
   sequelize,
   User,
@@ -27,4 +36,5 @@ module.exports = {
   Job,
   UserSettings,
   Recipe,
+  Template,
 };
