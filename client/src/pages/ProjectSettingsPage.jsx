@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import client from '../api/client';
 import * as templateApi from '../api/templates';
+import TemplatePreview from '../components/TemplatePreview';
 import { 
   ArrowLeft, Settings, FileSpreadsheet, Clock, FileText, Image, Palette, 
   FolderTree, Layout, Users, ChefHat, RefreshCw, Loader2, XCircle, CheckCircle2,
@@ -631,43 +632,10 @@ export default function ProjectSettingsPage() {
                       >
                         {/* Template Preview */}
                         <div 
-                          className="aspect-[2/3] w-full relative"
-                          style={{ 
-                            background: tpl.preview_image 
-                              ? `url(${tpl.preview_image}) center/cover` 
-                              : `linear-gradient(135deg, ${tpl.text_bar_color || '#fff'} 60%, ${tpl.background_color || '#1a1a2e'} 60%)`,
-                          }}
+                          className="aspect-[2/3] w-full relative flex items-center justify-center"
+                          style={{ background: tpl.background_color || '#1a1a2e' }}
                         >
-                          {/* Preview mockup if no preview_image */}
-                          {!tpl.preview_image && (
-                            <div className="absolute inset-0 flex flex-col">
-                              <div 
-                                className="flex-1"
-                                style={{ 
-                                  background: tpl.background_color || '#1a1a2e',
-                                  opacity: tpl.image_opacity || 1
-                                }}
-                              />
-                              <div 
-                                className="p-2 text-center"
-                                style={{ 
-                                  background: tpl.text_bar_color || '#ffffff',
-                                  height: '40%',
-                                  opacity: tpl.text_bar_opacity || 1
-                                }}
-                              >
-                                <span 
-                                  className="font-semibold text-xs line-clamp-2"
-                                  style={{ 
-                                    color: tpl.title_color || '#1a1a2e',
-                                    fontFamily: tpl.title_font || 'Montserrat'
-                                  }}
-                                >
-                                  Sample Title
-                                </span>
-                              </div>
-                            </div>
-                          )}
+                          <TemplatePreview template={tpl} containerWidth={160} containerHeight={240} />
                           
                           {/* Selection indicator */}
                           {isSelected && (
