@@ -411,8 +411,10 @@ async function processNextRecipe(projectId, userId, jobId = null) {
             const bottomImg = mjImages[3] || mjImages[1] || mjImages[0];
             
             // Generate pin using internal service
+            // Prefer shortTitle from article (cleaner, no SEO suffix) over raw recipe title
+            const pinTitle = article?.shortTitle || recipe.title;
             pinImageBuffer = await pinGenService.generatePin(template.toJSON(), {
-              title: recipe.title,
+              title: pinTitle,
               images: [topImg, bottomImg],
               website: template.website_text || '',
               subtitle: template.subtitle_text || '',
