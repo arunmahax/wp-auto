@@ -413,23 +413,36 @@ function drawCoverImage(ctx, img, x, y, targetWidth, targetHeight) {
  * Draw title with styling
  */
 function drawTitle(ctx, title, x, y, template, maxWidth) {
-  const fontSize = template.title_size || 72;
   const fontFamily = template.title_font || 'Montserrat';
+  const maxLines = template.title_max_lines || 4;
+  const text = title.toUpperCase();
+  
+  // Auto-shrink font size until text fits within maxLines
+  let fontSize = template.title_size || 72;
+  const minFontSize = 28;
+  let lines;
+  
+  while (fontSize >= minFontSize) {
+    ctx.font = `bold ${fontSize}px "${fontFamily}"`;
+    lines = wrapText(ctx, text, maxWidth);
+    if (lines.length <= maxLines) break;
+    fontSize -= 4;
+  }
+  
+  // If still too many lines after shrinking, truncate last visible line with ellipsis
+  if (lines.length > maxLines) {
+    lines = lines.slice(0, maxLines);
+    lines[maxLines - 1] = lines[maxLines - 1].replace(/\s+\S*$/, '') + '...';
+  }
   
   ctx.font = `bold ${fontSize}px "${fontFamily}"`;
   ctx.fillStyle = template.title_color || '#000000';
   
-  // Word wrap
-  const lines = wrapText(ctx, title.toUpperCase(), maxWidth);
   const lineHeight = fontSize * 1.2;
   const totalHeight = lines.length * lineHeight;
   const startY = y - totalHeight / 2 + lineHeight / 2;
   
-  // Limit to max lines
-  const maxLines = template.title_max_lines || 3;
-  const displayLines = lines.slice(0, maxLines);
-  
-  displayLines.forEach((line, i) => {
+  lines.forEach((line, i) => {
     drawStyledText(ctx, line, x, startY + i * lineHeight, {
       align: template.title_alignment || 'center',
       outline: template.title_outline_enabled,
