@@ -1,7 +1,7 @@
 # ── Build stage ─────────────────────────────────────────────
 FROM node:20-alpine AS builder
 
-# Native deps needed to compile sqlite3
+# Native deps needed to compile some packages
 RUN apk add --no-cache python3 make g++
 
 # Force development mode so npm ci installs devDependencies (vite, tailwind, etc.)
@@ -22,14 +22,11 @@ RUN cd client && npm run build
 # ── Production stage ───────────────────────────────────────
 FROM node:20-alpine
 
-# Native deps for sqlite3 runtime bindings
-RUN apk add --no-cache python3 make g++
-
 WORKDIR /app
 
-# Install ONLY production deps fresh (no devDependencies)
+# Install ONLY production deps (no sqlite3 since it's devDependency now)
 COPY package.json package-lock.json* ./
-RUN npm ci --omit=dev && apk del python3 make g++
+RUN npm ci --omit=dev
 
 # Copy backend source
 COPY server.js ./
