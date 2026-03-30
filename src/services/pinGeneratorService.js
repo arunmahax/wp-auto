@@ -215,31 +215,76 @@ async function generatePin(template, data) {
   // Draw images based on layout
   if (loadedImages.length > 0) {
     if (template.layout === 'text-bar' || template.layout === 'two-photo-stack') {
-      // Two-photo layout
-      const imageHeight = template.text_bar_enabled 
-        ? (height - (template.text_bar_height || 200)) / 2 
-        : height / 2;
+      // Get image heights from template (percentages) or calculate defaults
+      const textBarHeight = template.text_bar_enabled ? (template.text_bar_height || 200) : 0;
+      const availableHeight = height - textBarHeight;
+      const imageGap = template.image_gap || 0;
+      
+      // Calculate heights based on template percentages or 50/50 default
+      let topImageHeight, bottomImageHeight;
+      
+      if (template.top_image_height && template.bottom_image_height) {
+        // Use percentages from template
+        topImageHeight = Math.floor(availableHeight * (template.top_image_height / 100));
+        bottomImageHeight = Math.floor(availableHeight * (template.bottom_image_height / 100));
+      } else {
+        // Default 50/50 split
+        topImageHeight = Math.floor((availableHeight - imageGap) / 2);
+        bottomImageHeight = topImageHeight;
+      }
+      
+      // Calculate positions based on text bar position
+      let topY = 0;
+      let textBarY = 0;
+      let bottomY = 0;
+      
+      if (template.text_bar_position === 'top') {
+        // Text bar on top: [textbar] [top img] [gap] [bottom img]
+        textBarY = 0;
+        topY = textBarHeight;
+        bottomY = topY + topImageHeight + imageGap;
+      } else if (template.text_bar_position === 'bottom') {
+        // Text bar on bottom: [top img] [gap] [bottom img] [textbar]
+        topY = 0;
+        bottomY = topImageHeight + imageGap;
+        textBarY = height - textBarHeight;
+      } else {
+        // Text bar in center (between images): [top img] [textbar] [bottom img]
+        topY = 0;
+        textBarY = topImageHeight;
+        bottomY = topImageHeight + textBarHeight;
+      }
       
       // Top image
       if (loadedImages[0]) {
-        drawCoverImage(ctx, loadedImages[0], 0, 0, width, imageHeight);
+        drawCoverImage(ctx, loadedImages[0], 0, topY, width, topImageHeight);
+        
+        // Overlay on top image
+        if (template.image_overlay_enabled) {
+          ctx.fillStyle = template.image_overlay_color || 'rgba(0,0,0,0.2)';
+          ctx.fillRect(0, topY, width, topImageHeight);
+        }
       }
       
       // Bottom image
-      const bottomY = template.text_bar_enabled 
-        ? imageHeight + (template.text_bar_height || 200)
-        : imageHeight;
-      
       if (loadedImages[1] || loadedImages[0]) {
         const bottomImg = loadedImages[1] || loadedImages[0];
-        drawCoverImage(ctx, bottomImg, 0, bottomY, width, height - bottomY);
+        drawCoverImage(ctx, bottomImg, 0, bottomY, width, bottomImageHeight);
+        
+        // Overlay on bottom image
+        if (template.image_overlay_enabled) {
+          ctx.fillStyle = template.image_overlay_color || 'rgba(0,0,0,0.2)';
+          ctx.fillRect(0, bottomY, width, bottomImageHeight);
+        }
       }
       
-      // Image overlay
-      if (template.image_overlay_enabled) {
-        ctx.fillStyle = template.image_overlay_color || 'rgba(0,0,0,0.2)';
-        ctx.fillRect(0, 0, width, imageHeight);
-        ctx.fillRect(0, bottomY, width, height - bottomY);
+      // Draw gap area with background color if there's a gap
+      if (imageGap > 0 && template.text_bar_position !== 'center') {
+        ctx.fillStyle = template.background_color || '#ffffff';
+        const gapY = template.text_bar_position === 'top' 
+          ? topY + topImageHeight 
+          : topImageHeight;
+        ctx.fillRect(0, gapY, width, imageGap);
       }
       
     } else if (template.layout === 'full-background') {
@@ -259,6 +304,12 @@ async function generatePin(template, data) {
     const barHeight = template.text_bar_height || 200;
     let barY;
     
+    // Calculate bar position - needs to match image layout
+    const availableHeight = height - barHeight;
+    const topImageHeight = template.top_image_height 
+      ? Math.floor(availableHeight * (template.top_image_height / 100))
+      : Math.floor(availableHeight / 2);
+    
     switch (template.text_bar_position) {
       case 'top':
         barY = 0;
@@ -266,8 +317,8 @@ async function generatePin(template, data) {
       case 'bottom':
         barY = height - barHeight;
         break;
-      default: // center
-        barY = (height - barHeight) / 2;
+      default: // center - between images
+        barY = topImageHeight;
     }
     
     // Bar background

@@ -1344,24 +1344,106 @@ function TemplateEditorPage() {
                 background: template.background_color,
               }}
             >
-              {/* Sample Image Placeholder */}
-              <div 
-                className="absolute inset-0"
-                style={{
-                  backgroundImage: 'url(https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=800)',
-                  backgroundSize: template.image_position === 'contain' ? 'contain' : 'cover',
-                  backgroundPosition: template.image_position === 'top' ? 'top' : template.image_position === 'bottom' ? 'bottom' : 'center',
-                  backgroundRepeat: 'no-repeat',
-                  opacity: template.image_opacity,
-                }}
-              />
-              
-              {/* Image Overlay */}
-              {template.image_overlay_enabled && (
-                <div 
-                  className="absolute inset-0"
-                  style={{ background: template.image_overlay_color }}
-                />
+              {/* Two-photo stack layout preview */}
+              {(template.layout === 'text-bar' || template.layout === 'two-photo-stack') ? (
+                <>
+                  {(() => {
+                    const totalHeight = template.height * previewScale;
+                    const textBarHeight = template.text_bar_enabled ? (template.text_bar_height * previewScale) : 0;
+                    const availableHeight = totalHeight - textBarHeight;
+                    const imageGap = (template.image_gap || 0) * previewScale;
+                    
+                    const topPct = template.top_image_height || 50;
+                    const bottomPct = template.bottom_image_height || 50;
+                    const topHeight = availableHeight * (topPct / 100);
+                    const bottomHeight = availableHeight * (bottomPct / 100);
+                    
+                    let topY = 0, textBarY = 0, bottomY = 0;
+                    if (template.text_bar_position === 'top') {
+                      textBarY = 0;
+                      topY = textBarHeight;
+                      bottomY = topY + topHeight + imageGap;
+                    } else if (template.text_bar_position === 'bottom') {
+                      topY = 0;
+                      bottomY = topHeight + imageGap;
+                      textBarY = totalHeight - textBarHeight;
+                    } else {
+                      topY = 0;
+                      textBarY = topHeight;
+                      bottomY = topHeight + textBarHeight;
+                    }
+                    
+                    return (
+                      <>
+                        {/* Top Image */}
+                        <div 
+                          className="absolute left-0 right-0"
+                          style={{
+                            top: topY,
+                            height: topHeight,
+                            backgroundImage: 'url(https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=800)',
+                            backgroundSize: 'cover',
+                            backgroundPosition: 'center',
+                            opacity: template.image_opacity,
+                          }}
+                        />
+                        {template.image_overlay_enabled && (
+                          <div 
+                            className="absolute left-0 right-0"
+                            style={{ top: topY, height: topHeight, background: template.image_overlay_color }}
+                          />
+                        )}
+                        {imageGap > 0 && template.text_bar_position !== 'center' && (
+                          <div 
+                            className="absolute left-0 right-0"
+                            style={{
+                              top: template.text_bar_position === 'top' ? topY + topHeight : topHeight,
+                              height: imageGap,
+                              background: template.background_color,
+                            }}
+                          />
+                        )}
+                        {/* Bottom Image */}
+                        <div 
+                          className="absolute left-0 right-0"
+                          style={{
+                            top: bottomY,
+                            height: bottomHeight,
+                            backgroundImage: 'url(https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=800)',
+                            backgroundSize: 'cover',
+                            backgroundPosition: 'center',
+                            opacity: template.image_opacity,
+                          }}
+                        />
+                        {template.image_overlay_enabled && (
+                          <div 
+                            className="absolute left-0 right-0"
+                            style={{ top: bottomY, height: bottomHeight, background: template.image_overlay_color }}
+                          />
+                        )}
+                      </>
+                    );
+                  })()}
+                </>
+              ) : (
+                <>
+                  <div 
+                    className="absolute inset-0"
+                    style={{
+                      backgroundImage: 'url(https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=800)',
+                      backgroundSize: template.image_position === 'contain' ? 'contain' : 'cover',
+                      backgroundPosition: template.image_position === 'top' ? 'top' : template.image_position === 'bottom' ? 'bottom' : 'center',
+                      backgroundRepeat: 'no-repeat',
+                      opacity: template.image_opacity,
+                    }}
+                  />
+                  {template.image_overlay_enabled && (
+                    <div 
+                      className="absolute inset-0"
+                      style={{ background: template.image_overlay_color }}
+                    />
+                  )}
+                </>
               )}
               
               {/* Text Bar */}
