@@ -1,5 +1,5 @@
 const cron = require('node-cron');
-const { Project, Recipe, Job } = require('../models');
+const { Project, Recipe, Job, Template } = require('../models');
 const { Op } = require('sequelize');
 const sequelize = require('../config/database');
 const settingsService = require('./settingsService');
@@ -7,6 +7,19 @@ const contentWriterClient = require('./contentWriterClient');
 const ttapiClient = require('./ttapiClient');
 const pinGeneratorClient = require('./pinGeneratorClient');
 const wpPublishService = require('./wpPublishService');
+
+// Lazy-load pin generator service to avoid issues if canvas not available
+let pinGeneratorService = null;
+const getPinGeneratorService = () => {
+  if (!pinGeneratorService) {
+    try {
+      pinGeneratorService = require('./pinGeneratorService');
+    } catch (error) {
+      console.error('[Scheduler] Pin generator service not available:', error.message);
+    }
+  }
+  return pinGeneratorService;
+};
 
 // Active cron jobs keyed by project ID
 const activeJobs = new Map();
@@ -365,10 +378,46 @@ async function processNextRecipe(projectId, userId, jobId = null) {
     await recipe.update({ pipeline_step: 'pin_generation' });
     await updateJob({ pipeline_step: 'pin_generation' });
     let pinImageUrl = null;
+    let pinImageBuffer = null;
 
-    if (keys.pin_generator_url && mjImages.length > 0) {
+    // Check if project has a template configured (internal pin generator)
+    if (project.template_id && mjImages.length > 0) {
       try {
-        console.log(`[Scheduler] Step 5: Generating Pinterest pin...`);
+        console.log(`[Scheduler] Step 5: Generating Pinterest pin with template...`);
+        
+        // Load the template
+        const template = await Template.findByPk(project.template_id);
+        if (!template) {
+          console.warn(`[Scheduler] Template ${project.template_id} not found, skipping pin generation`);
+        } else {
+          // Get pin generator service
+          const pinGenService = getPinGeneratorService();
+          if (pinGenService) {
+            // Use image 1 (top) and image 4 or 2 (bottom)
+            const topImg = mjImages[0];
+            const bottomImg = mjImages[3] || mjImages[1] || mjImages[0];
+            
+            // Generate pin using internal service
+            pinImageBuffer = await pinGenService.generatePin(template.toJSON(), {
+              title: recipe.title,
+              images: [topImg, bottomImg],
+              website: template.website_text || '',
+              subtitle: template.subtitle_text || '',
+            });
+            
+            console.log(`[Scheduler] Step 5 done: pin image generated internally (${pinImageBuffer.length} bytes)`);
+          } else {
+            console.warn('[Scheduler] Pin generator service not available');
+          }
+        }
+      } catch (pinErr) {
+        console.error(`[Scheduler] Step 5 template generation failed (non-fatal):`, pinErr.message);
+      }
+    } 
+    // Fall back to external pin generator service
+    else if (keys.pin_generator_url && mjImages.length > 0) {
+      try {
+        console.log(`[Scheduler] Step 5: Generating Pinterest pin (external service)...`);
         // Use image 1 (top) and image 4 or image 2 (bottom)
         const topImg = mjImages[0];
         const bottomImg = mjImages[3] || mjImages[1] || mjImages[0];
@@ -390,7 +439,7 @@ async function processNextRecipe(projectId, userId, jobId = null) {
     }
 
     // ─── Step 6: Submit pin to WordPress pinboards ──────────────────────
-    if (pinImageUrl && postId) {
+    if ((pinImageUrl || pinImageBuffer) && postId) {
       try {
         await recipe.update({ pipeline_step: 'pin_submission' });
         await updateJob({ pipeline_step: 'pin_submission' });
@@ -399,9 +448,19 @@ async function processNextRecipe(projectId, userId, jobId = null) {
         // Upload pin image to WP media and get the WP URL
         const wpClient = wpPublishService.createWpClient(project);
         const slug = recipe.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-        const pinMedia = await wpPublishService.uploadImageFromUrl(
-          wpClient, pinImageUrl, `${slug}-pin.jpg`, recipe.title,
-        );
+        
+        let pinMedia;
+        if (pinImageBuffer) {
+          // Use buffer upload for internally generated pins
+          pinMedia = await wpPublishService.uploadImageFromBuffer(
+            wpClient, pinImageBuffer, `${slug}-pin.png`, recipe.title, 'image/png',
+          );
+        } else {
+          // Use URL upload for external pin generator
+          pinMedia = await wpPublishService.uploadImageFromUrl(
+            wpClient, pinImageUrl, `${slug}-pin.jpg`, recipe.title,
+          );
+        }
 
         // Save the WordPress-hosted pin image URL
         await recipe.update({ wp_pin_image: pinMedia.url });

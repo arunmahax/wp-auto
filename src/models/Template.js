@@ -81,16 +81,32 @@ const Template = sequelize.define('Template', {
     allowNull: true,
     defaultValue: 200,
   },
+  // Image settings
+  image_position: {
+    type: DataTypes.STRING(20),
+    allowNull: true,
+    defaultValue: 'cover', // 'cover', 'contain', 'top', 'center', 'bottom'
+  },
+  image_opacity: {
+    type: DataTypes.FLOAT,
+    allowNull: true,
+    defaultValue: 1.0,
+  },
   // Title text settings
   title_font: {
     type: DataTypes.STRING(100),
     allowNull: false,
-    defaultValue: 'Montserrat-Bold',
+    defaultValue: 'Montserrat',
   },
   title_size: {
     type: DataTypes.INTEGER,
     allowNull: false,
     defaultValue: 72,
+  },
+  title_weight: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    defaultValue: 700,
   },
   title_color: {
     type: DataTypes.STRING(20),
@@ -101,6 +117,16 @@ const Template = sequelize.define('Template', {
     type: DataTypes.STRING(20),
     allowNull: false,
     defaultValue: 'center',
+  },
+  title_line_height: {
+    type: DataTypes.FLOAT,
+    allowNull: true,
+    defaultValue: 1.2,
+  },
+  title_max_width: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    defaultValue: 90, // percentage
   },
   title_outline_enabled: {
     type: DataTypes.BOOLEAN,
@@ -146,12 +172,17 @@ const Template = sequelize.define('Template', {
   subtitle_font: {
     type: DataTypes.STRING(100),
     allowNull: true,
-    defaultValue: 'Montserrat-Regular',
+    defaultValue: 'Montserrat',
   },
   subtitle_size: {
     type: DataTypes.INTEGER,
     allowNull: true,
     defaultValue: 32,
+  },
+  subtitle_weight: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    defaultValue: 400,
   },
   subtitle_color: {
     type: DataTypes.STRING(20),
@@ -168,6 +199,11 @@ const Template = sequelize.define('Template', {
     type: DataTypes.BOOLEAN,
     allowNull: false,
     defaultValue: true,
+  },
+  website_text: {
+    type: DataTypes.STRING(100),
+    allowNull: true,
+    defaultValue: 'yoursite.com',
   },
   website_font: {
     type: DataTypes.STRING(100),
@@ -194,14 +230,40 @@ const Template = sequelize.define('Template', {
     allowNull: true,
   },
   // Badge settings (for badge-style layout)
-  badges_enabled: {
+  badge_enabled: {
     type: DataTypes.BOOLEAN,
     allowNull: false,
     defaultValue: false,
   },
-  badges_config: {
-    type: DataTypes.TEXT,
-    allowNull: true, // JSON array of badge configs
+  badge_text: {
+    type: DataTypes.STRING(50),
+    allowNull: true,
+    defaultValue: 'RECIPE',
+  },
+  badge_position: {
+    type: DataTypes.STRING(20),
+    allowNull: true,
+    defaultValue: 'top-left', // 'top-left', 'top-right', 'bottom-left', 'bottom-right'
+  },
+  badge_background: {
+    type: DataTypes.STRING(20),
+    allowNull: true,
+    defaultValue: '#e63946',
+  },
+  badge_color: {
+    type: DataTypes.STRING(20),
+    allowNull: true,
+    defaultValue: '#ffffff',
+  },
+  badge_font: {
+    type: DataTypes.STRING(100),
+    allowNull: true,
+    defaultValue: 'Montserrat',
+  },
+  badge_size: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    defaultValue: 24,
   },
   // Decorative elements
   decorations_enabled: {

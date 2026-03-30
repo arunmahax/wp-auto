@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import client from '../api/client';
+import * as templateApi from '../api/templates';
 import { 
   ArrowLeft, Settings, FileSpreadsheet, Clock, FileText, Image, Palette, 
   FolderTree, Layout, Users, ChefHat, RefreshCw, Loader2, XCircle, CheckCircle2,
-  Rss, Plus, Trash2, Eye
+  Rss, Plus, Trash2, Eye, Layers, ExternalLink
 } from 'lucide-react';
 
 export default function ProjectSettingsPage() {
@@ -14,6 +15,7 @@ export default function ProjectSettingsPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [templates, setTemplates] = useState([]);
 
   const [form, setForm] = useState({
     google_sheet_url: '',
@@ -23,6 +25,8 @@ export default function ProjectSettingsPage() {
     content_authors: '',
     image_prompt_template: '',
     pin_design_config: '',
+    template_id: null,
+    pin_design_mode: 'json', // 'json' or 'template'
     rss_feeds: [],
     spy_keywords: [],
   });
@@ -44,10 +48,12 @@ export default function ProjectSettingsPage() {
       client.get(`/projects/${id}`),
       client.get(`/projects/${id}/recipes`),
       client.get('/projects/spy/suggested-feeds'),
+      templateApi.getTemplates(),
     ])
-      .then(([projRes, recipesRes, suggestedRes]) => {
+      .then(([projRes, recipesRes, suggestedRes, templatesRes]) => {
         const data = projRes.data;
         setProject(data);
+        setTemplates(templatesRes || []);
         setForm({
           google_sheet_url: data.google_sheet_url || '',
           trigger_interval: data.trigger_interval || 'disabled',
@@ -56,13 +62,18 @@ export default function ProjectSettingsPage() {
           content_authors: data.content_authors || '',
           image_prompt_template: data.image_prompt_template || '',
           pin_design_config: data.pin_design_config || '',
+          template_id: data.template_id || null,
+          pin_design_mode: data.template_id ? 'template' : 'json',
           rss_feeds: data.rss_feeds || [],
           spy_keywords: data.spy_keywords || [],
         });
         setRecipes(recipesRes.data);
         setSuggestedFeeds(suggestedRes.data.feeds || []);
       })
-      .catch(() => setError('Failed to load project'))
+      .catch((err) => {
+        console.error('Failed to load project:', err);
+        setError('Failed to load project');
+      })
       .finally(() => setLoading(false));
   }, [id]);
 
@@ -121,11 +132,22 @@ export default function ProjectSettingsPage() {
     setSaving(true);
     try {
       const payload = { ...form };
+      // Remove non-API fields
+      delete payload.pin_design_mode;
+      
       if (!payload.google_sheet_url) payload.google_sheet_url = null;
       if (!payload.content_categories) payload.content_categories = null;
       if (!payload.content_authors) payload.content_authors = null;
       if (!payload.image_prompt_template) payload.image_prompt_template = null;
-      if (!payload.pin_design_config) payload.pin_design_config = null;
+      
+      // Handle template vs JSON mode
+      if (form.pin_design_mode === 'template') {
+        payload.pin_design_config = null; // Clear JSON when using template
+      } else {
+        payload.template_id = null; // Clear template when using JSON
+        if (!payload.pin_design_config) payload.pin_design_config = null;
+      }
+      
       const { data } = await client.put(`/projects/${id}`, payload);
       setProject(data);
       setSuccess('Settings saved successfully');
@@ -510,22 +532,134 @@ export default function ProjectSettingsPage() {
 
         {/* Pin Design Config */}
         <section className="card p-6">
-          <div className="flex items-center gap-2 mb-1">
-            <Palette className="w-4 h-4" style={{ color: 'var(--primary-400)' }} />
-            <h2 className="text-lg font-semibold" style={{ color: 'var(--text-100)' }}>Pin Design Config</h2>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Palette className="w-4 h-4" style={{ color: 'var(--primary-400)' }} />
+              <h2 className="text-lg font-semibold" style={{ color: 'var(--text-100)' }}>Pin Design</h2>
+            </div>
+            <Link 
+              to="/templates" 
+              className="text-sm flex items-center gap-1 hover:opacity-80"
+              style={{ color: 'var(--primary-400)' }}
+            >
+              <Layers className="w-4 h-4" />
+              Manage Templates
+              <ExternalLink className="w-3 h-3" />
+            </Link>
           </div>
-          <p className="text-xs mb-4" style={{ color: 'var(--text-500)' }}>
-            JSON configuration for the Pin Designer service. <code className="px-1 rounded text-xs" style={{ background: 'var(--bg-600)', color: 'var(--text-300)' }}>topImageUrl</code>, <code className="px-1 rounded text-xs" style={{ background: 'var(--bg-600)', color: 'var(--text-300)' }}>bottomImageUrl</code>, and <code className="px-1 rounded text-xs" style={{ background: 'var(--bg-600)', color: 'var(--text-300)' }}>recipeTitle</code> are set automatically.
-          </p>
-          <div>
-            <label htmlFor="pin_design_config" className="label">Design JSON</label>
-            <textarea id="pin_design_config" name="pin_design_config" value={form.pin_design_config} onChange={handleChange}
-              rows={10}
-              className="input font-mono text-xs"
-              placeholder={'{\n  "smartLayoutOptions": { "line1FontSize": 70 },\n  "textOptions": { "fontFamily": "Comic Sans MS", "fontSize": 80 },\n  "topTags": []\n}'}
-            />
-            <p className="text-xs mt-1" style={{ color: 'var(--text-500)' }}>Leave blank to use Pin Designer defaults. Must be valid JSON.</p>
+          
+          {/* Mode Selector */}
+          <div className="flex gap-2 mb-4">
+            <button
+              type="button"
+              className={`flex-1 py-3 px-4 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
+                form.pin_design_mode === 'template' 
+                  ? 'bg-primary-500 text-white' 
+                  : 'bg-white/5 hover:bg-white/10'
+              }`}
+              style={{ color: form.pin_design_mode === 'template' ? 'white' : 'var(--text-300)' }}
+              onClick={() => setForm(prev => ({ ...prev, pin_design_mode: 'template' }))}
+            >
+              <Layers className="w-4 h-4" />
+              Use Template
+            </button>
+            <button
+              type="button"
+              className={`flex-1 py-3 px-4 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
+                form.pin_design_mode === 'json' 
+                  ? 'bg-primary-500 text-white' 
+                  : 'bg-white/5 hover:bg-white/10'
+              }`}
+              style={{ color: form.pin_design_mode === 'json' ? 'white' : 'var(--text-300)' }}
+              onClick={() => setForm(prev => ({ ...prev, pin_design_mode: 'json' }))}
+            >
+              <FileText className="w-4 h-4" />
+              Custom JSON
+            </button>
           </div>
+          
+          {/* Template Selection */}
+          {form.pin_design_mode === 'template' && (
+            <div>
+              <label className="label">Select Template</label>
+              {templates.length === 0 ? (
+                <div 
+                  className="p-4 rounded-lg text-center"
+                  style={{ background: 'var(--bg-700)', color: 'var(--text-400)' }}
+                >
+                  <p className="mb-2">No templates found.</p>
+                  <Link 
+                    to="/templates/new" 
+                    className="text-sm hover:underline"
+                    style={{ color: 'var(--primary-400)' }}
+                  >
+                    Create your first template →
+                  </Link>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {templates.map((tpl) => (
+                    <button
+                      key={tpl.id}
+                      type="button"
+                      className={`p-4 rounded-lg text-left transition-all ${
+                        form.template_id === tpl.id 
+                          ? 'ring-2 ring-primary-500 bg-primary-500/10' 
+                          : 'bg-white/5 hover:bg-white/10'
+                      }`}
+                      onClick={() => setForm(prev => ({ ...prev, template_id: tpl.id }))}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <span className="font-medium block" style={{ color: 'var(--text-100)' }}>
+                            {tpl.name}
+                          </span>
+                          <span className="text-xs" style={{ color: 'var(--text-500)' }}>
+                            {tpl.width}×{tpl.height} • {tpl.layout}
+                          </span>
+                        </div>
+                        {form.template_id === tpl.id && (
+                          <CheckCircle2 className="w-5 h-5" style={{ color: 'var(--primary-400)' }} />
+                        )}
+                      </div>
+                      {tpl.description && (
+                        <p className="text-xs mt-2" style={{ color: 'var(--text-400)' }}>
+                          {tpl.description}
+                        </p>
+                      )}
+                      {tpl.is_system && (
+                        <span 
+                          className="text-xs px-2 py-0.5 rounded mt-2 inline-block"
+                          style={{ background: 'var(--bg-600)', color: 'var(--text-400)' }}
+                        >
+                          System Template
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <p className="text-xs mt-2" style={{ color: 'var(--text-500)' }}>
+                Templates define how your pins will look. The title and images are automatically filled in during generation.
+              </p>
+            </div>
+          )}
+          
+          {/* JSON Config */}
+          {form.pin_design_mode === 'json' && (
+            <div>
+              <p className="text-xs mb-4" style={{ color: 'var(--text-500)' }}>
+                JSON configuration for the Pin Designer service. <code className="px-1 rounded text-xs" style={{ background: 'var(--bg-600)', color: 'var(--text-300)' }}>topImageUrl</code>, <code className="px-1 rounded text-xs" style={{ background: 'var(--bg-600)', color: 'var(--text-300)' }}>bottomImageUrl</code>, and <code className="px-1 rounded text-xs" style={{ background: 'var(--bg-600)', color: 'var(--text-300)' }}>recipeTitle</code> are set automatically.
+              </p>
+              <label htmlFor="pin_design_config" className="label">Design JSON</label>
+              <textarea id="pin_design_config" name="pin_design_config" value={form.pin_design_config} onChange={handleChange}
+                rows={10}
+                className="input font-mono text-xs"
+                placeholder={'{\n  "smartLayoutOptions": { "line1FontSize": 70 },\n  "textOptions": { "fontFamily": "Comic Sans MS", "fontSize": 80 },\n  "topTags": []\n}'}
+              />
+              <p className="text-xs mt-1" style={{ color: 'var(--text-500)' }}>Leave blank to use Pin Designer defaults. Must be valid JSON.</p>
+            </div>
+          )}
         </section>
 
         <button type="submit" disabled={saving} className="btn btn-primary w-full">

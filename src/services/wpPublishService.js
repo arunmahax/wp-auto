@@ -104,6 +104,36 @@ async function uploadImageFromUrl(client, imageUrl, filename, altText) {
 }
 
 /**
+ * Upload image from buffer directly to WordPress
+ * @param {AxiosInstance} client - WordPress API client
+ * @param {Buffer} imageBuffer - Image buffer (PNG or JPEG)
+ * @param {string} filename - Filename for the upload
+ * @param {string} altText - Alt text for the image
+ * @param {string} contentType - MIME type (default: image/png)
+ */
+async function uploadImageFromBuffer(client, imageBuffer, filename, altText, contentType = 'image/png') {
+  return withRetry(async () => {
+    const { data } = await client.post('/wp-json/wp/v2/media', imageBuffer, {
+      headers: {
+        'Content-Type': contentType,
+        'Content-Disposition': `attachment; filename="${filename}"`,
+      },
+    });
+
+    if (altText && data.id) {
+      await client.post(`/wp-json/wp/v2/media/${data.id}`, {
+        alt_text: altText,
+      }).catch(() => {});
+    }
+
+    return {
+      id: data.id,
+      url: data.source_url || data.guid?.rendered,
+    };
+  });
+}
+
+/**
  * Upload recipe images to WordPress.
  * Image 1 = finished dish (article body)
  * Image 2 = ingredient prep (article body)
@@ -932,6 +962,7 @@ function sleep(ms) {
 module.exports = {
   createWpClient,
   uploadImageFromUrl,
+  uploadImageFromBuffer,
   uploadRecipeImages,
   parseArticleResult,
   publishArticle,

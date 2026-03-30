@@ -26,11 +26,14 @@ import {
   Sparkles,
   Globe,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  Square,
+  RectangleVertical,
+  Maximize2
 } from 'lucide-react';
 import * as templateApi from '../api/templates';
 
-// Popular Google Fonts for Pinterest
+// Extended Google Fonts for Pinterest
 const FONT_OPTIONS = [
   { value: 'Montserrat', label: 'Montserrat', category: 'sans-serif' },
   { value: 'Playfair Display', label: 'Playfair Display', category: 'serif' },
@@ -52,6 +55,30 @@ const FONT_OPTIONS = [
   { value: 'Archivo Black', label: 'Archivo Black', category: 'sans-serif' },
   { value: 'Alfa Slab One', label: 'Alfa Slab One', category: 'display' },
   { value: 'Satisfy', label: 'Satisfy', category: 'handwriting' },
+  { value: 'Russo One', label: 'Russo One', category: 'display' },
+  { value: 'Cinzel', label: 'Cinzel', category: 'serif' },
+  { value: 'Fjalla One', label: 'Fjalla One', category: 'display' },
+  { value: 'Staatliches', label: 'Staatliches', category: 'display' },
+  { value: 'Teko', label: 'Teko', category: 'sans-serif' },
+  { value: 'Barlow Condensed', label: 'Barlow Condensed', category: 'sans-serif' },
+  { value: 'DM Serif Display', label: 'DM Serif Display', category: 'serif' },
+  { value: 'Josefin Sans', label: 'Josefin Sans', category: 'sans-serif' },
+  { value: 'Quicksand', label: 'Quicksand', category: 'sans-serif' },
+  { value: 'Cormorant Garamond', label: 'Cormorant Garamond', category: 'serif' },
+  { value: 'Source Sans Pro', label: 'Source Sans Pro', category: 'sans-serif' },
+  { value: 'Nunito', label: 'Nunito', category: 'sans-serif' },
+  { value: 'Caveat', label: 'Caveat', category: 'handwriting' },
+  { value: 'Shadows Into Light', label: 'Shadows Into Light', category: 'handwriting' },
+  { value: 'Great Vibes', label: 'Great Vibes', category: 'handwriting' },
+];
+
+// Preset pin sizes
+const SIZE_PRESETS = [
+  { name: 'Pinterest Standard', width: 1000, height: 1500, icon: RectangleVertical },
+  { name: 'Pinterest Tall', width: 1000, height: 2100, icon: RectangleVertical },
+  { name: 'Pinterest Short', width: 1000, height: 1000, icon: Square },
+  { name: 'Instagram Story', width: 1080, height: 1920, icon: RectangleVertical },
+  { name: 'Wide Pin', width: 1000, height: 750, icon: Maximize2 },
 ];
 
 // Preset layouts
@@ -64,12 +91,14 @@ const LAYOUT_PRESETS = [
       layout: 'text-bar',
       text_bar_enabled: true,
       text_bar_position: 'bottom',
-      text_bar_height: 40,
+      text_bar_height: 350,
       text_bar_color: '#ffffff',
+      text_bar_opacity: 1.0,
       title_color: '#1a1a2e',
-      title_font_family: 'Montserrat',
-      title_font_size: 48,
-      title_font_weight: 700,
+      title_font: 'Montserrat',
+      title_size: 64,
+      title_weight: 700,
+      image_overlay_enabled: false,
     }
   },
   {
@@ -82,10 +111,11 @@ const LAYOUT_PRESETS = [
       image_overlay_enabled: true,
       image_overlay_color: 'rgba(0,0,0,0.5)',
       title_color: '#ffffff',
-      title_font_family: 'Oswald',
-      title_font_size: 64,
-      title_font_weight: 700,
-      title_has_shadow: true,
+      title_font: 'Oswald',
+      title_size: 72,
+      title_weight: 700,
+      title_shadow_enabled: true,
+      title_shadow_blur: 8,
     }
   },
   {
@@ -95,11 +125,15 @@ const LAYOUT_PRESETS = [
     config: {
       layout: 'minimal',
       background_color: '#ffffff',
-      text_bar_enabled: false,
+      text_bar_enabled: true,
+      text_bar_color: '#ffffff',
+      text_bar_height: 400,
+      text_bar_position: 'center',
       title_color: '#1a1a2e',
-      title_font_family: 'Playfair Display',
-      title_font_size: 56,
-      title_font_weight: 700,
+      title_font: 'Playfair Display',
+      title_size: 64,
+      title_weight: 700,
+      image_overlay_enabled: false,
     }
   },
   {
@@ -110,12 +144,16 @@ const LAYOUT_PRESETS = [
       layout: 'badge-style',
       text_bar_enabled: true,
       text_bar_position: 'bottom',
-      text_bar_height: 35,
+      text_bar_height: 300,
+      text_bar_color: '#ffffff',
       badge_enabled: true,
       badge_text: 'RECIPE',
       badge_position: 'top-left',
       badge_background: '#e63946',
-      title_font_family: 'Bebas Neue',
+      badge_color: '#ffffff',
+      title_font: 'Bebas Neue',
+      title_size: 68,
+      title_weight: 400,
     }
   },
 ];
@@ -124,6 +162,16 @@ const LAYOUT_PRESETS = [
 const COLOR_PRESETS = [
   '#ffffff', '#000000', '#1a1a2e', '#e63946', '#f4a261',
   '#2a9d8f', '#264653', '#e9c46a', '#f72585', '#7209b7',
+  '#3a86ff', '#8338ec', '#ff006e', '#fb5607', '#ffbe0b',
+];
+
+// Image position options
+const IMAGE_POSITIONS = [
+  { value: 'cover', label: 'Cover (fill)' },
+  { value: 'contain', label: 'Contain (fit)' },
+  { value: 'top', label: 'Align Top' },
+  { value: 'center', label: 'Align Center' },
+  { value: 'bottom', label: 'Align Bottom' },
 ];
 
 function TemplateEditorPage() {
@@ -134,52 +182,67 @@ function TemplateEditorPage() {
   
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('text'); // text, background, layout, badge
   
-  // Template state
+  // Template state - MATCHING BACKEND MODEL FIELD NAMES
   const [template, setTemplate] = useState({
     name: 'Untitled Template',
     description: '',
     layout: 'text-bar',
     width: 1000,
     height: 1500,
+    background_type: 'images',
     background_color: '#1a1a2e',
-    background_image: null,
+    // Image settings
+    image_position: 'cover',
+    image_opacity: 1.0,
+    image_overlay_enabled: true,
+    image_overlay_color: 'rgba(0,0,0,0.2)',
+    // Text bar
     text_bar_enabled: true,
     text_bar_position: 'bottom',
-    text_bar_height: 40,
+    text_bar_height: 350,
     text_bar_color: '#ffffff',
-    text_bar_opacity: 100,
-    title_font_family: 'Montserrat',
-    title_font_size: 48,
-    title_font_weight: 700,
+    text_bar_opacity: 1.0,
+    // Title
+    title_font: 'Montserrat',
+    title_size: 64,
+    title_weight: 700,
     title_color: '#1a1a2e',
     title_alignment: 'center',
     title_line_height: 1.2,
     title_max_width: 90,
-    title_has_outline: false,
+    title_outline_enabled: false,
     title_outline_color: '#ffffff',
     title_outline_width: 3,
-    title_has_shadow: false,
+    title_shadow_enabled: false,
     title_shadow_color: 'rgba(0,0,0,0.5)',
     title_shadow_blur: 4,
+    title_max_lines: 3,
+    // Subtitle
     subtitle_enabled: false,
-    subtitle_text: '',
-    subtitle_font_family: 'Open Sans',
-    subtitle_font_size: 18,
+    subtitle_text: 'EASY | DELICIOUS | THE BEST',
+    subtitle_font: 'Montserrat',
+    subtitle_size: 24,
+    subtitle_weight: 400,
     subtitle_color: '#666666',
+    // Website
     website_enabled: false,
-    website_text: '',
+    website_text: 'yoursite.com',
+    website_font: 'Montserrat',
+    website_size: 24,
+    website_color: '#333333',
     website_position: 'bottom',
-    website_font_size: 14,
-    website_color: '#ffffff',
+    website_background: '',
+    // Badge
     badge_enabled: false,
-    badge_text: 'NEW',
+    badge_text: 'RECIPE',
     badge_position: 'top-left',
     badge_background: '#e63946',
     badge_color: '#ffffff',
-    image_overlay_enabled: true,
-    image_overlay_color: 'rgba(0,0,0,0.2)',
+    badge_font: 'Montserrat',
+    badge_size: 24,
   });
   
   // Sample text for preview
@@ -190,21 +253,30 @@ function TemplateEditorPage() {
     if (!isNew) {
       loadTemplate();
     }
-    // Load Google Fonts
-    const link = document.createElement('link');
-    link.href = `https://fonts.googleapis.com/css2?family=${FONT_OPTIONS.map(f => f.value.replace(' ', '+')).join('&family=')}&display=swap`;
-    link.rel = 'stylesheet';
-    document.head.appendChild(link);
+    loadGoogleFonts();
   }, [id]);
+  
+  const loadGoogleFonts = () => {
+    const existingLink = document.querySelector('link[data-google-fonts]');
+    if (existingLink) return;
+    
+    const link = document.createElement('link');
+    link.href = `https://fonts.googleapis.com/css2?family=${FONT_OPTIONS.map(f => f.value.replace(/ /g, '+')).join('&family=')}&display=swap`;
+    link.rel = 'stylesheet';
+    link.setAttribute('data-google-fonts', 'true');
+    document.head.appendChild(link);
+  };
   
   const loadTemplate = async () => {
     try {
       setLoading(true);
+      setError('');
       const data = await templateApi.getTemplate(id);
-      setTemplate(data);
+      // Merge with defaults to handle any missing fields
+      setTemplate(prev => ({ ...prev, ...data }));
     } catch (err) {
-      alert('Failed to load template');
-      navigate('/templates');
+      setError('Failed to load template');
+      console.error('Load template error:', err);
     } finally {
       setLoading(false);
     }
@@ -218,17 +290,33 @@ function TemplateEditorPage() {
     updateTemplate(preset.config);
   };
   
+  const applySizePreset = (preset) => {
+    updateTemplate({ width: preset.width, height: preset.height });
+  };
+  
   const handleSave = async () => {
     try {
       setSaving(true);
+      setError('');
+      
+      // Prepare data - remove any fields that shouldn't be sent
+      const saveData = { ...template };
+      delete saveData.id;
+      delete saveData.user_id;
+      delete saveData.created_at;
+      delete saveData.updated_at;
+      delete saveData.createdAt;
+      delete saveData.updatedAt;
+      
       if (isNew) {
-        const created = await templateApi.createTemplate(template);
+        const created = await templateApi.createTemplate(saveData);
         navigate(`/templates/${created.id}/edit`, { replace: true });
       } else {
-        await templateApi.updateTemplate(id, template);
+        await templateApi.updateTemplate(id, saveData);
       }
     } catch (err) {
-      alert('Failed to save template');
+      console.error('Save error:', err);
+      setError(err.response?.data?.error || 'Failed to save template');
     } finally {
       setSaving(false);
     }
@@ -243,9 +331,11 @@ function TemplateEditorPage() {
   }
   
   // Calculate preview styles
+  const previewScale = Math.min(350 / template.width, 500 / template.height);
+  
   const getTextBarStyle = () => {
-    if (!template.text_bar_enabled) return {};
-    const height = `${template.text_bar_height}%`;
+    if (!template.text_bar_enabled) return { display: 'none' };
+    const height = `${template.text_bar_height * previewScale}px`;
     const position = template.text_bar_position;
     return {
       position: 'absolute',
@@ -253,35 +343,91 @@ function TemplateEditorPage() {
       right: 0,
       height,
       background: template.text_bar_color,
-      opacity: template.text_bar_opacity / 100,
+      opacity: template.text_bar_opacity,
+      ...(position === 'top' ? { top: 0 } : position === 'bottom' ? { bottom: 0 } : { top: '50%', transform: 'translateY(-50%)' })
+    };
+  };
+  
+  const getTitleContainerStyle = () => {
+    if (!template.text_bar_enabled) {
+      return { position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' };
+    }
+    const height = `${template.text_bar_height * previewScale}px`;
+    const position = template.text_bar_position;
+    return {
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      height,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '12px',
       ...(position === 'top' ? { top: 0 } : position === 'bottom' ? { bottom: 0 } : { top: '50%', transform: 'translateY(-50%)' })
     };
   };
   
   const getTitleStyle = () => {
     const style = {
-      fontFamily: `"${template.title_font_family}", sans-serif`,
-      fontSize: `${template.title_font_size / 3}px`,
-      fontWeight: template.title_font_weight,
+      fontFamily: `"${template.title_font}", sans-serif`,
+      fontSize: `${template.title_size * previewScale}px`,
+      fontWeight: template.title_weight,
       color: template.title_color,
       textAlign: template.title_alignment,
       lineHeight: template.title_line_height,
       maxWidth: `${template.title_max_width}%`,
-      margin: '0 auto',
       textTransform: 'uppercase',
       letterSpacing: '0.02em',
+      wordBreak: 'break-word',
     };
     
-    if (template.title_has_outline) {
-      style.WebkitTextStroke = `${template.title_outline_width / 2}px ${template.title_outline_color}`;
+    if (template.title_outline_enabled) {
+      style.WebkitTextStroke = `${template.title_outline_width * previewScale}px ${template.title_outline_color}`;
       style.paintOrder = 'stroke fill';
     }
     
-    if (template.title_has_shadow) {
-      style.textShadow = `${template.title_shadow_blur / 2}px ${template.title_shadow_blur / 2}px ${template.title_shadow_blur}px ${template.title_shadow_color}`;
+    if (template.title_shadow_enabled) {
+      const blur = template.title_shadow_blur * previewScale;
+      style.textShadow = `${blur / 2}px ${blur / 2}px ${blur}px ${template.title_shadow_color}`;
     }
     
     return style;
+  };
+  
+  const getBadgeStyle = () => {
+    const pos = template.badge_position;
+    return {
+      position: 'absolute',
+      padding: `${4 * previewScale}px ${10 * previewScale}px`,
+      background: template.badge_background,
+      color: template.badge_color,
+      fontFamily: `"${template.badge_font}", sans-serif`,
+      fontSize: `${template.badge_size * previewScale}px`,
+      fontWeight: 700,
+      borderRadius: `${4 * previewScale}px`,
+      textTransform: 'uppercase',
+      letterSpacing: '0.05em',
+      top: pos.includes('top') ? `${12 * previewScale}px` : 'auto',
+      bottom: pos.includes('bottom') ? `${12 * previewScale}px` : 'auto',
+      left: pos.includes('left') ? `${12 * previewScale}px` : 'auto',
+      right: pos.includes('right') ? `${12 * previewScale}px` : 'auto',
+    };
+  };
+  
+  const getWebsiteStyle = () => {
+    return {
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      padding: `${6 * previewScale}px`,
+      background: template.website_background || 'rgba(0,0,0,0.3)',
+      color: template.website_color,
+      fontFamily: `"${template.website_font}", sans-serif`,
+      fontSize: `${template.website_size * previewScale}px`,
+      textAlign: 'center',
+      top: template.website_position === 'top' ? 0 : 'auto',
+      bottom: template.website_position === 'bottom' ? 0 : 'auto',
+    };
   };
   
   return (
@@ -303,20 +449,25 @@ function TemplateEditorPage() {
             type="text"
             value={template.name}
             onChange={(e) => updateTemplate({ name: e.target.value })}
-            className="bg-transparent border-0 text-lg font-semibold focus:outline-none"
+            className="bg-transparent border-0 text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-primary-500 rounded px-2"
             style={{ color: 'var(--text-100)' }}
             placeholder="Template Name"
           />
         </div>
         
         <div className="flex items-center gap-2">
+          {error && (
+            <span className="text-sm px-3 py-1 rounded" style={{ color: 'var(--error-400)', background: 'rgba(220,38,38,0.1)' }}>
+              {error}
+            </span>
+          )}
           <button
             className="btn btn-primary flex items-center gap-2"
             onClick={handleSave}
             disabled={saving}
           >
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-            Save
+            Save Template
           </button>
         </div>
       </div>
@@ -332,9 +483,9 @@ function TemplateEditorPage() {
           <div className="flex border-b" style={{ borderColor: 'var(--border)' }}>
             {[
               { id: 'text', icon: Type, label: 'Text' },
-              { id: 'background', icon: Palette, label: 'Background' },
+              { id: 'background', icon: ImageIcon, label: 'Image' },
               { id: 'layout', icon: Layout, label: 'Layout' },
-              { id: 'badge', icon: Sparkles, label: 'Badge' },
+              { id: 'badge', icon: Sparkles, label: 'Extras' },
             ].map(tab => (
               <button
                 key={tab.id}
@@ -373,13 +524,13 @@ function TemplateEditorPage() {
                 {/* Font Family */}
                 <div>
                   <label className="block text-xs font-medium mb-2" style={{ color: 'var(--text-400)' }}>
-                    Font Family
+                    Title Font ({FONT_OPTIONS.length} fonts)
                   </label>
                   <select
-                    value={template.title_font_family}
-                    onChange={(e) => updateTemplate({ title_font_family: e.target.value })}
+                    value={template.title_font}
+                    onChange={(e) => updateTemplate({ title_font: e.target.value })}
                     className="input w-full"
-                    style={{ fontFamily: template.title_font_family }}
+                    style={{ fontFamily: template.title_font }}
                   >
                     {FONT_OPTIONS.map(font => (
                       <option key={font.value} value={font.value} style={{ fontFamily: font.value }}>
@@ -392,26 +543,26 @@ function TemplateEditorPage() {
                 {/* Font Size */}
                 <div>
                   <label className="block text-xs font-medium mb-2" style={{ color: 'var(--text-400)' }}>
-                    Font Size: {template.title_font_size}px
+                    Font Size: {template.title_size}px
                   </label>
                   <div className="flex items-center gap-2">
                     <button
-                      className="btn btn-sm btn-ghost"
-                      onClick={() => updateTemplate({ title_font_size: Math.max(16, template.title_font_size - 4) })}
+                      className="btn btn-sm btn-ghost p-2"
+                      onClick={() => updateTemplate({ title_size: Math.max(16, template.title_size - 4) })}
                     >
                       <Minus className="w-4 h-4" />
                     </button>
                     <input
                       type="range"
-                      value={template.title_font_size}
-                      onChange={(e) => updateTemplate({ title_font_size: Number(e.target.value) })}
+                      value={template.title_size}
+                      onChange={(e) => updateTemplate({ title_size: Number(e.target.value) })}
                       min={16}
-                      max={120}
+                      max={150}
                       className="flex-1"
                     />
                     <button
-                      className="btn btn-sm btn-ghost"
-                      onClick={() => updateTemplate({ title_font_size: Math.min(120, template.title_font_size + 4) })}
+                      className="btn btn-sm btn-ghost p-2"
+                      onClick={() => updateTemplate({ title_size: Math.min(150, template.title_size + 4) })}
                     >
                       <Plus className="w-4 h-4" />
                     </button>
@@ -423,17 +574,17 @@ function TemplateEditorPage() {
                   <label className="block text-xs font-medium mb-2" style={{ color: 'var(--text-400)' }}>
                     Font Weight
                   </label>
-                  <div className="grid grid-cols-4 gap-1">
+                  <div className="grid grid-cols-3 gap-1">
                     {[400, 500, 600, 700, 800, 900].map(weight => (
                       <button
                         key={weight}
                         className={`py-2 rounded text-xs transition-colors ${
-                          template.title_font_weight === weight 
+                          template.title_weight === weight 
                             ? 'bg-primary-500 text-white' 
                             : 'bg-white/5 hover:bg-white/10'
                         }`}
-                        style={{ color: template.title_font_weight === weight ? 'white' : 'var(--text-300)' }}
-                        onClick={() => updateTemplate({ title_font_weight: weight })}
+                        style={{ color: template.title_weight === weight ? 'white' : 'var(--text-300)' }}
+                        onClick={() => updateTemplate({ title_weight: weight })}
                       >
                         {weight}
                       </button>
@@ -447,11 +598,11 @@ function TemplateEditorPage() {
                     Text Color
                   </label>
                   <div className="flex flex-wrap gap-2 mb-2">
-                    {COLOR_PRESETS.map(color => (
+                    {COLOR_PRESETS.slice(0, 10).map(color => (
                       <button
                         key={color}
-                        className={`w-7 h-7 rounded-full border-2 transition-transform hover:scale-110 ${
-                          template.title_color === color ? 'border-primary-400' : 'border-transparent'
+                        className={`w-6 h-6 rounded-full border-2 transition-transform hover:scale-110 ${
+                          template.title_color === color ? 'border-primary-400 ring-2 ring-primary-400/50' : 'border-transparent'
                         }`}
                         style={{ background: color }}
                         onClick={() => updateTemplate({ title_color: color })}
@@ -463,7 +614,7 @@ function TemplateEditorPage() {
                       type="color"
                       value={template.title_color}
                       onChange={(e) => updateTemplate({ title_color: e.target.value })}
-                      className="w-10 h-10 rounded cursor-pointer"
+                      className="w-10 h-10 rounded cursor-pointer border-0"
                     />
                     <input
                       type="text"
@@ -500,6 +651,22 @@ function TemplateEditorPage() {
                   </div>
                 </div>
                 
+                {/* Line Height */}
+                <div>
+                  <label className="block text-xs font-medium mb-2" style={{ color: 'var(--text-400)' }}>
+                    Line Height: {template.title_line_height}
+                  </label>
+                  <input
+                    type="range"
+                    value={template.title_line_height}
+                    onChange={(e) => updateTemplate({ title_line_height: Number(e.target.value) })}
+                    min={0.8}
+                    max={2}
+                    step={0.1}
+                    className="w-full"
+                  />
+                </div>
+                
                 {/* Stroke / Outline */}
                 <div className="p-3 rounded-lg" style={{ background: 'var(--bg-700)' }}>
                   <div className="flex items-center justify-between mb-3">
@@ -507,15 +674,15 @@ function TemplateEditorPage() {
                     <label className="relative inline-flex items-center cursor-pointer">
                       <input
                         type="checkbox"
-                        checked={template.title_has_outline}
-                        onChange={(e) => updateTemplate({ title_has_outline: e.target.checked })}
+                        checked={template.title_outline_enabled}
+                        onChange={(e) => updateTemplate({ title_outline_enabled: e.target.checked })}
                         className="sr-only peer"
                       />
                       <div className="w-9 h-5 bg-gray-600 peer-checked:bg-primary-500 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all"></div>
                     </label>
                   </div>
                   
-                  {template.title_has_outline && (
+                  {template.title_outline_enabled && (
                     <div className="space-y-3">
                       <div className="flex items-center gap-2">
                         <span className="text-xs w-16" style={{ color: 'var(--text-400)' }}>Color</span>
@@ -523,7 +690,7 @@ function TemplateEditorPage() {
                           type="color"
                           value={template.title_outline_color}
                           onChange={(e) => updateTemplate({ title_outline_color: e.target.value })}
-                          className="w-8 h-8 rounded cursor-pointer"
+                          className="w-8 h-8 rounded cursor-pointer border-0"
                         />
                         <input
                           type="text"
@@ -555,15 +722,15 @@ function TemplateEditorPage() {
                     <label className="relative inline-flex items-center cursor-pointer">
                       <input
                         type="checkbox"
-                        checked={template.title_has_shadow}
-                        onChange={(e) => updateTemplate({ title_has_shadow: e.target.checked })}
+                        checked={template.title_shadow_enabled}
+                        onChange={(e) => updateTemplate({ title_shadow_enabled: e.target.checked })}
                         className="sr-only peer"
                       />
                       <div className="w-9 h-5 bg-gray-600 peer-checked:bg-primary-500 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all"></div>
                     </label>
                   </div>
                   
-                  {template.title_has_shadow && (
+                  {template.title_shadow_enabled && (
                     <div className="flex items-center gap-2">
                       <span className="text-xs w-16" style={{ color: 'var(--text-400)' }}>Blur</span>
                       <input
@@ -571,7 +738,7 @@ function TemplateEditorPage() {
                         value={template.title_shadow_blur}
                         onChange={(e) => updateTemplate({ title_shadow_blur: Number(e.target.value) })}
                         min={0}
-                        max={20}
+                        max={30}
                         className="flex-1"
                       />
                       <span className="text-xs w-8" style={{ color: 'var(--text-300)' }}>{template.title_shadow_blur}px</span>
@@ -581,20 +748,52 @@ function TemplateEditorPage() {
               </>
             )}
             
-            {/* BACKGROUND TAB */}
+            {/* IMAGE/BACKGROUND TAB */}
             {activeTab === 'background' && (
               <>
-                {/* Background Color */}
+                {/* Image Position */}
+                <div>
+                  <label className="block text-xs font-medium mb-2" style={{ color: 'var(--text-400)' }}>
+                    Image Position
+                  </label>
+                  <select
+                    value={template.image_position}
+                    onChange={(e) => updateTemplate({ image_position: e.target.value })}
+                    className="input w-full"
+                  >
+                    {IMAGE_POSITIONS.map(opt => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                {/* Image Opacity */}
+                <div>
+                  <label className="block text-xs font-medium mb-2" style={{ color: 'var(--text-400)' }}>
+                    Image Opacity: {Math.round(template.image_opacity * 100)}%
+                  </label>
+                  <input
+                    type="range"
+                    value={template.image_opacity}
+                    onChange={(e) => updateTemplate({ image_opacity: Number(e.target.value) })}
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    className="w-full"
+                  />
+                </div>
+                
+                {/* Background Color (for areas without image) */}
                 <div>
                   <label className="block text-xs font-medium mb-2" style={{ color: 'var(--text-400)' }}>
                     Background Color
                   </label>
                   <div className="flex flex-wrap gap-2 mb-2">
-                    {COLOR_PRESETS.map(color => (
+                    {COLOR_PRESETS.slice(0, 10).map(color => (
                       <button
                         key={color}
-                        className={`w-7 h-7 rounded-full border-2 transition-transform hover:scale-110 ${
-                          template.background_color === color ? 'border-primary-400' : 'border-transparent'
+                        className={`w-6 h-6 rounded-full border-2 transition-transform hover:scale-110 ${
+                          template.background_color === color ? 'border-primary-400 ring-2 ring-primary-400/50' : 'border-transparent'
                         }`}
                         style={{ background: color }}
                         onClick={() => updateTemplate({ background_color: color })}
@@ -606,7 +805,7 @@ function TemplateEditorPage() {
                       type="color"
                       value={template.background_color}
                       onChange={(e) => updateTemplate({ background_color: e.target.value })}
-                      className="w-10 h-10 rounded cursor-pointer"
+                      className="w-10 h-10 rounded cursor-pointer border-0"
                     />
                     <input
                       type="text"
@@ -620,7 +819,10 @@ function TemplateEditorPage() {
                 {/* Image Overlay */}
                 <div className="p-3 rounded-lg" style={{ background: 'var(--bg-700)' }}>
                   <div className="flex items-center justify-between mb-3">
-                    <span className="text-sm font-medium" style={{ color: 'var(--text-200)' }}>Image Overlay</span>
+                    <div>
+                      <span className="text-sm font-medium block" style={{ color: 'var(--text-200)' }}>Image Overlay</span>
+                      <span className="text-xs" style={{ color: 'var(--text-500)' }}>Darken image for readability</span>
+                    </div>
                     <label className="relative inline-flex items-center cursor-pointer">
                       <input
                         type="checkbox"
@@ -631,17 +833,29 @@ function TemplateEditorPage() {
                       <div className="w-9 h-5 bg-gray-600 peer-checked:bg-primary-500 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all"></div>
                     </label>
                   </div>
-                  <p className="text-xs mb-2" style={{ color: 'var(--text-500)' }}>
-                    Darken the image for better text readability
-                  </p>
                   {template.image_overlay_enabled && (
-                    <input
-                      type="text"
-                      value={template.image_overlay_color}
-                      onChange={(e) => updateTemplate({ image_overlay_color: e.target.value })}
-                      className="input w-full"
-                      placeholder="rgba(0,0,0,0.3)"
-                    />
+                    <div>
+                      <label className="text-xs mb-1 block" style={{ color: 'var(--text-400)' }}>Overlay Color (rgba)</label>
+                      <input
+                        type="text"
+                        value={template.image_overlay_color}
+                        onChange={(e) => updateTemplate({ image_overlay_color: e.target.value })}
+                        className="input w-full"
+                        placeholder="rgba(0,0,0,0.3)"
+                      />
+                      <div className="flex gap-1 mt-2">
+                        {['rgba(0,0,0,0.2)', 'rgba(0,0,0,0.4)', 'rgba(0,0,0,0.6)', 'rgba(255,255,255,0.3)'].map(c => (
+                          <button
+                            key={c}
+                            className="flex-1 py-1 text-xs rounded bg-white/5 hover:bg-white/10"
+                            style={{ color: 'var(--text-400)' }}
+                            onClick={() => updateTemplate({ image_overlay_color: c })}
+                          >
+                            {c.includes('255') ? 'Light' : c.includes('0.2') ? '20%' : c.includes('0.4') ? '40%' : '60%'}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   )}
                 </div>
               </>
@@ -650,10 +864,71 @@ function TemplateEditorPage() {
             {/* LAYOUT TAB */}
             {activeTab === 'layout' && (
               <>
-                {/* Presets */}
+                {/* Size Presets */}
                 <div>
                   <label className="block text-xs font-medium mb-2" style={{ color: 'var(--text-400)' }}>
-                    Quick Presets
+                    Pin Size Presets
+                  </label>
+                  <div className="grid grid-cols-1 gap-2">
+                    {SIZE_PRESETS.map(preset => (
+                      <button
+                        key={preset.name}
+                        className={`p-3 rounded-lg text-left transition-colors flex items-center gap-3 ${
+                          template.width === preset.width && template.height === preset.height
+                            ? 'bg-primary-500/20 border border-primary-500'
+                            : 'bg-white/5 hover:bg-white/10'
+                        }`}
+                        onClick={() => applySizePreset(preset)}
+                      >
+                        <preset.icon className="w-5 h-5" style={{ color: 'var(--text-300)' }} />
+                        <div>
+                          <span className="block text-sm font-medium" style={{ color: 'var(--text-100)' }}>
+                            {preset.name}
+                          </span>
+                          <span className="block text-xs" style={{ color: 'var(--text-500)' }}>
+                            {preset.width} × {preset.height}px
+                          </span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                
+                {/* Custom Size */}
+                <div>
+                  <label className="block text-xs font-medium mb-2" style={{ color: 'var(--text-400)' }}>
+                    Custom Size
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <span className="text-xs" style={{ color: 'var(--text-500)' }}>Width</span>
+                      <input
+                        type="number"
+                        value={template.width}
+                        onChange={(e) => updateTemplate({ width: Number(e.target.value) })}
+                        className="input w-full mt-1"
+                        min={100}
+                        max={3000}
+                      />
+                    </div>
+                    <div>
+                      <span className="text-xs" style={{ color: 'var(--text-500)' }}>Height</span>
+                      <input
+                        type="number"
+                        value={template.height}
+                        onChange={(e) => updateTemplate({ height: Number(e.target.value) })}
+                        className="input w-full mt-1"
+                        min={100}
+                        max={4000}
+                      />
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Quick Presets */}
+                <div>
+                  <label className="block text-xs font-medium mb-2" style={{ color: 'var(--text-400)' }}>
+                    Style Presets
                   </label>
                   <div className="grid grid-cols-2 gap-2">
                     {LAYOUT_PRESETS.map(preset => (
@@ -715,14 +990,15 @@ function TemplateEditorPage() {
                       {/* Height */}
                       <div>
                         <span className="block text-xs mb-2" style={{ color: 'var(--text-400)' }}>
-                          Height: {template.text_bar_height}%
+                          Height: {template.text_bar_height}px
                         </span>
                         <input
                           type="range"
                           value={template.text_bar_height}
                           onChange={(e) => updateTemplate({ text_bar_height: Number(e.target.value) })}
-                          min={15}
-                          max={60}
+                          min={100}
+                          max={800}
+                          step={10}
                           className="w-full"
                         />
                       </div>
@@ -734,48 +1010,38 @@ function TemplateEditorPage() {
                           type="color"
                           value={template.text_bar_color}
                           onChange={(e) => updateTemplate({ text_bar_color: e.target.value })}
-                          className="w-8 h-8 rounded cursor-pointer ml-auto"
+                          className="w-8 h-8 rounded cursor-pointer ml-auto border-0"
+                        />
+                      </div>
+                      
+                      {/* Bar Opacity */}
+                      <div>
+                        <span className="block text-xs mb-2" style={{ color: 'var(--text-400)' }}>
+                          Opacity: {Math.round(template.text_bar_opacity * 100)}%
+                        </span>
+                        <input
+                          type="range"
+                          value={template.text_bar_opacity}
+                          onChange={(e) => updateTemplate({ text_bar_opacity: Number(e.target.value) })}
+                          min={0}
+                          max={1}
+                          step={0.05}
+                          className="w-full"
                         />
                       </div>
                     </div>
                   )}
                 </div>
-                
-                {/* Pin Size */}
-                <div>
-                  <label className="block text-xs font-medium mb-2" style={{ color: 'var(--text-400)' }}>
-                    Pin Size
-                  </label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <span className="text-xs" style={{ color: 'var(--text-500)' }}>Width</span>
-                      <input
-                        type="number"
-                        value={template.width}
-                        onChange={(e) => updateTemplate({ width: Number(e.target.value) })}
-                        className="input w-full mt-1"
-                      />
-                    </div>
-                    <div>
-                      <span className="text-xs" style={{ color: 'var(--text-500)' }}>Height</span>
-                      <input
-                        type="number"
-                        value={template.height}
-                        onChange={(e) => updateTemplate({ height: Number(e.target.value) })}
-                        className="input w-full mt-1"
-                      />
-                    </div>
-                  </div>
-                </div>
               </>
             )}
             
-            {/* BADGE TAB */}
+            {/* EXTRAS TAB (Badge, Subtitle, Website) */}
             {activeTab === 'badge' && (
               <>
+                {/* Badge */}
                 <div className="p-3 rounded-lg" style={{ background: 'var(--bg-700)' }}>
                   <div className="flex items-center justify-between mb-3">
-                    <span className="text-sm font-medium" style={{ color: 'var(--text-200)' }}>Show Badge</span>
+                    <span className="text-sm font-medium" style={{ color: 'var(--text-200)' }}>Badge</span>
                     <label className="relative inline-flex items-center cursor-pointer">
                       <input
                         type="checkbox"
@@ -829,7 +1095,7 @@ function TemplateEditorPage() {
                           type="color"
                           value={template.badge_background}
                           onChange={(e) => updateTemplate({ badge_background: e.target.value })}
-                          className="w-8 h-8 rounded cursor-pointer ml-auto"
+                          className="w-8 h-8 rounded cursor-pointer ml-auto border-0"
                         />
                       </div>
                       <div className="flex items-center gap-2">
@@ -838,7 +1104,69 @@ function TemplateEditorPage() {
                           type="color"
                           value={template.badge_color}
                           onChange={(e) => updateTemplate({ badge_color: e.target.value })}
-                          className="w-8 h-8 rounded cursor-pointer ml-auto"
+                          className="w-8 h-8 rounded cursor-pointer ml-auto border-0"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+                
+                {/* Subtitle */}
+                <div className="p-3 rounded-lg" style={{ background: 'var(--bg-700)' }}>
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-sm font-medium" style={{ color: 'var(--text-200)' }}>Subtitle</span>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={template.subtitle_enabled}
+                        onChange={(e) => updateTemplate({ subtitle_enabled: e.target.checked })}
+                        className="sr-only peer"
+                      />
+                      <div className="w-9 h-5 bg-gray-600 peer-checked:bg-primary-500 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all"></div>
+                    </label>
+                  </div>
+                  
+                  {template.subtitle_enabled && (
+                    <div className="space-y-3">
+                      <input
+                        type="text"
+                        value={template.subtitle_text}
+                        onChange={(e) => updateTemplate({ subtitle_text: e.target.value })}
+                        className="input w-full"
+                        placeholder="EASY | DELICIOUS | THE BEST"
+                      />
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <span className="text-xs" style={{ color: 'var(--text-500)' }}>Font</span>
+                          <select
+                            value={template.subtitle_font}
+                            onChange={(e) => updateTemplate({ subtitle_font: e.target.value })}
+                            className="input w-full mt-1"
+                          >
+                            {FONT_OPTIONS.map(font => (
+                              <option key={font.value} value={font.value}>{font.label}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <span className="text-xs" style={{ color: 'var(--text-500)' }}>Size</span>
+                          <input
+                            type="number"
+                            value={template.subtitle_size}
+                            onChange={(e) => updateTemplate({ subtitle_size: Number(e.target.value) })}
+                            className="input w-full mt-1"
+                            min={10}
+                            max={60}
+                          />
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs" style={{ color: 'var(--text-400)' }}>Color</span>
+                        <input
+                          type="color"
+                          value={template.subtitle_color}
+                          onChange={(e) => updateTemplate({ subtitle_color: e.target.value })}
+                          className="w-8 h-8 rounded cursor-pointer ml-auto border-0"
                         />
                       </div>
                     </div>
@@ -848,7 +1176,7 @@ function TemplateEditorPage() {
                 {/* Website */}
                 <div className="p-3 rounded-lg" style={{ background: 'var(--bg-700)' }}>
                   <div className="flex items-center justify-between mb-3">
-                    <span className="text-sm font-medium" style={{ color: 'var(--text-200)' }}>Website URL</span>
+                    <span className="text-sm font-medium" style={{ color: 'var(--text-200)' }}>Website Branding</span>
                     <label className="relative inline-flex items-center cursor-pointer">
                       <input
                         type="checkbox"
@@ -885,6 +1213,15 @@ function TemplateEditorPage() {
                           </button>
                         ))}
                       </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs" style={{ color: 'var(--text-400)' }}>Color</span>
+                        <input
+                          type="color"
+                          value={template.website_color}
+                          onChange={(e) => updateTemplate({ website_color: e.target.value })}
+                          className="w-8 h-8 rounded cursor-pointer ml-auto border-0"
+                        />
+                      </div>
                     </div>
                   )}
                 </div>
@@ -901,19 +1238,20 @@ function TemplateEditorPage() {
               ref={previewRef}
               className="relative shadow-2xl rounded-lg overflow-hidden mx-auto"
               style={{ 
-                width: Math.min(350, template.width / 2.8),
-                height: Math.min(350, template.width / 2.8) * (template.height / template.width),
+                width: template.width * previewScale,
+                height: template.height * previewScale,
                 background: template.background_color,
               }}
             >
-              {/* Sample Image Area */}
+              {/* Sample Image Placeholder */}
               <div 
                 className="absolute inset-0"
                 style={{
-                  backgroundImage: 'linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%)',
-                  backgroundSize: '20px 20px',
-                  backgroundPosition: '0 0, 0 10px, 10px -10px, -10px 0px',
-                  opacity: 0.1
+                  backgroundImage: 'url(https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=800)',
+                  backgroundSize: template.image_position === 'contain' ? 'contain' : 'cover',
+                  backgroundPosition: template.image_position === 'top' ? 'top' : template.image_position === 'bottom' ? 'bottom' : 'center',
+                  backgroundRepeat: 'no-repeat',
+                  opacity: template.image_opacity,
                 }}
               />
               
@@ -930,51 +1268,45 @@ function TemplateEditorPage() {
                 <div style={getTextBarStyle()} />
               )}
               
-              {/* Title */}
-              <div 
-                className="absolute inset-0 flex items-center justify-center p-4"
-                style={template.text_bar_enabled ? {
-                  ...(template.text_bar_position === 'top' ? { top: 0, height: `${template.text_bar_height}%` } : {}),
-                  ...(template.text_bar_position === 'bottom' ? { bottom: 0, top: 'auto', height: `${template.text_bar_height}%` } : {}),
-                  ...(template.text_bar_position === 'center' ? { top: '50%', transform: 'translateY(-50%)', height: `${template.text_bar_height}%` } : {}),
-                } : {}}
-              >
+              {/* Title Container */}
+              <div style={getTitleContainerStyle()}>
                 <div style={getTitleStyle()}>
                   {previewTitle}
                 </div>
               </div>
               
-              {/* Badge */}
-              {template.badge_enabled && template.badge_text && (
+              {/* Subtitle */}
+              {template.subtitle_enabled && template.subtitle_text && (
                 <div
-                  className="absolute px-2 py-1 text-xs font-bold uppercase"
                   style={{
-                    background: template.badge_background,
-                    color: template.badge_color,
-                    borderRadius: '4px',
-                    top: template.badge_position.includes('top') ? '10px' : 'auto',
-                    bottom: template.badge_position.includes('bottom') ? '10px' : 'auto',
-                    left: template.badge_position.includes('left') ? '10px' : 'auto',
-                    right: template.badge_position.includes('right') ? '10px' : 'auto',
-                    fontSize: '10px',
+                    position: 'absolute',
+                    left: 0,
+                    right: 0,
+                    bottom: template.text_bar_enabled && template.text_bar_position === 'bottom' 
+                      ? `${(template.text_bar_height * previewScale) - 50}px` 
+                      : `${20 * previewScale}px`,
+                    textAlign: 'center',
+                    fontFamily: `"${template.subtitle_font}", sans-serif`,
+                    fontSize: `${template.subtitle_size * previewScale}px`,
+                    fontWeight: template.subtitle_weight,
+                    color: template.subtitle_color,
+                    letterSpacing: '0.1em',
                   }}
                 >
+                  {template.subtitle_text}
+                </div>
+              )}
+              
+              {/* Badge */}
+              {template.badge_enabled && template.badge_text && (
+                <div style={getBadgeStyle()}>
                   {template.badge_text}
                 </div>
               )}
               
               {/* Website */}
               {template.website_enabled && template.website_text && (
-                <div
-                  className="absolute left-0 right-0 text-center py-1 text-xs"
-                  style={{
-                    background: 'rgba(0,0,0,0.3)',
-                    color: template.website_color,
-                    top: template.website_position === 'top' ? 0 : 'auto',
-                    bottom: template.website_position === 'bottom' ? 0 : 'auto',
-                    fontSize: '9px',
-                  }}
-                >
+                <div style={getWebsiteStyle()}>
                   {template.website_text}
                 </div>
               )}
@@ -982,7 +1314,7 @@ function TemplateEditorPage() {
             
             {/* Size indicator */}
             <p className="mt-4 text-xs" style={{ color: 'var(--text-500)' }}>
-              {template.width} × {template.height}px
+              {template.width} × {template.height}px (preview at {Math.round(previewScale * 100)}%)
             </p>
           </div>
         </div>
