@@ -382,6 +382,7 @@ async function processNextRecipe(projectId, userId, jobId = null) {
 
     // Check if project has templates configured (internal pin generator)
     const templateIds = project.template_ids || [];
+    console.log(`[Scheduler] Step 5: template_ids=${JSON.stringify(templateIds)}, raw=${project.getDataValue('template_ids')}, mjImages=${mjImages.length}`);
     if (templateIds.length > 0 && mjImages.length > 0) {
       try {
         console.log(`[Scheduler] Step 5: Generating Pinterest pin with template...`);
