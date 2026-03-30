@@ -1,10 +1,10 @@
 /**
  * Pin Generator Service
  * Generates Pinterest pin images from templates
- * Uses node-canvas for server-side image rendering
+ * Uses @napi-rs/canvas for server-side image rendering (pre-built binaries, no compilation needed)
  */
 
-const { createCanvas, loadImage, registerFont } = require('canvas');
+const { createCanvas, loadImage, GlobalFonts } = require('@napi-rs/canvas');
 const path = require('path');
 const fs = require('fs').promises;
 const axios = require('axios');
@@ -56,11 +56,8 @@ async function loadGoogleFont(fontFamily, weight = '400') {
       }
     }
     
-    // Register font
-    registerFont(fontPath, { 
-      family: fontFamily,
-      weight: weight
-    });
+    // Register font with @napi-rs/canvas
+    GlobalFonts.registerFromPath(fontPath, fontFamily);
     
     loadedFonts.add(fontKey);
     console.log(`Loaded font: ${fontKey}`);
