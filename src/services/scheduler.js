@@ -275,8 +275,15 @@ async function processNextRecipe(projectId, userId, jobId = null) {
       const defaultTemplate = '{image} {title}, food photography, professional, high quality, appetizing, 4k --ar 16:9';
       const template = project.image_prompt_template || defaultTemplate;
       const spyImage = recipe.image1 || '';
+      // Sanitize title: remove trailing dashes/punctuation that Midjourney reads as parameters
+      const safeTitle = recipe.title
+        .replace(/[\u2014\u2013]/g, '-')   // normalize em/en dashes
+        .replace(/\s*-+\s*$/g, '')          // strip trailing dashes
+        .replace(/\s+-\s+/g, ' ')           // lone dashes between words → space
+        .replace(/\s+-,/g, ',')             // "-," pattern
+        .trim();
       let prompt = template
-        .replace(/\{title\}/gi, recipe.title)
+        .replace(/\{title\}/gi, safeTitle)
         .replace(/\{image\}/gi, spyImage)
         .replace(/\u2014/g, '-')
         .replace(/\u2013/g, '-')
