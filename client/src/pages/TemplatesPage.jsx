@@ -215,27 +215,92 @@ function TemplatesPage() {
                 {/* Preview */}
                 <div 
                   className="aspect-[2/3] relative overflow-hidden"
-                  style={{ 
-                    background: template.preview_image 
-                      ? `url(${template.preview_image}) center/cover`
-                      : template.background_color || 'var(--bg-700)'
-                  }}
+                  style={{ background: template.background_color || 'var(--bg-700)' }}
                 >
-                  {/* Placeholder preview */}
-                  {!template.preview_image && (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center">
-                      <LayoutIcon 
-                        className="w-12 h-12 mb-2" 
-                        style={{ color: 'var(--text-600)' }} 
-                      />
-                      <span 
-                        className="text-xs uppercase tracking-wider"
-                        style={{ color: 'var(--text-500)' }}
-                      >
-                        {template.layout?.replace(/-/g, ' ')}
-                      </span>
-                    </div>
-                  )}
+                  {/* Live template preview */}
+                  {(() => {
+                    const tpl = template;
+                    const textBarHeight = tpl.text_bar_enabled ? ((tpl.text_bar_height || 200) / (tpl.height || 1500) * 100) : 0;
+                    const topPct = tpl.top_image_height || 50;
+                    const bottomPct = tpl.bottom_image_height || 50;
+                    const availablePct = 100 - textBarHeight;
+                    const topH = availablePct * (topPct / 100);
+                    const bottomH = availablePct * (bottomPct / 100);
+                    
+                    let topY = 0, barY = 0, bottomY = 0;
+                    if (tpl.text_bar_position === 'top') {
+                      barY = 0; topY = textBarHeight; bottomY = topY + topH;
+                    } else if (tpl.text_bar_position === 'bottom') {
+                      topY = 0; bottomY = topH; barY = 100 - textBarHeight;
+                    } else {
+                      topY = 0; barY = topH; bottomY = topH + textBarHeight;
+                    }
+                    
+                    return (
+                      <>
+                        {/* Top image area */}
+                        <div className="absolute left-0 right-0" style={{
+                          top: `${topY}%`, height: `${topH}%`,
+                          background: `linear-gradient(135deg, ${tpl.background_color || '#1a1a2e'} 0%, ${tpl.background_color || '#1a1a2e'}cc 100%)`,
+                          opacity: tpl.image_opacity || 1,
+                        }}>
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <ImageIcon className="w-8 h-8" style={{ color: 'rgba(255,255,255,0.15)' }} />
+                          </div>
+                        </div>
+                        
+                        {/* Text bar */}
+                        {tpl.text_bar_enabled && (
+                          <div className="absolute left-0 right-0 flex items-center justify-center" style={{
+                            top: `${barY}%`, height: `${textBarHeight}%`,
+                            background: tpl.text_bar_color || '#ffffff',
+                            opacity: tpl.text_bar_opacity || 1,
+                          }}>
+                            <span style={{
+                              fontFamily: `"${tpl.title_font || 'Montserrat'}", sans-serif`,
+                              fontWeight: tpl.title_weight || 700,
+                              fontSize: '0.65rem',
+                              color: tpl.title_color || '#1a1a2e',
+                              textAlign: 'center',
+                              padding: '0 8px',
+                              lineHeight: 1.2,
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.05em',
+                              overflow: 'hidden',
+                              display: '-webkit-box',
+                              WebkitLineClamp: 2,
+                              WebkitBoxOrient: 'vertical',
+                            }}>
+                              Recipe Title
+                            </span>
+                          </div>
+                        )}
+                        
+                        {/* Bottom image area */}
+                        <div className="absolute left-0 right-0" style={{
+                          top: `${bottomY}%`, height: `${bottomH}%`,
+                          background: `linear-gradient(225deg, ${tpl.background_color || '#1a1a2e'} 0%, ${tpl.background_color || '#1a1a2e'}aa 100%)`,
+                          opacity: tpl.image_opacity || 1,
+                        }}>
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <ImageIcon className="w-8 h-8" style={{ color: 'rgba(255,255,255,0.15)' }} />
+                          </div>
+                        </div>
+                        
+                        {/* Website text */}
+                        {tpl.website_enabled && tpl.website_text && (
+                          <div className="absolute left-0 right-0 text-center" style={{
+                            [tpl.website_position === 'top' ? 'top' : 'bottom']: '4px',
+                            fontSize: '0.45rem',
+                            color: tpl.website_color || '#000',
+                            fontFamily: `"${tpl.website_font || 'Montserrat'}", sans-serif`,
+                          }}>
+                            {tpl.website_text}
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
                   
                   {/* System badge */}
                   {template.is_system && (
@@ -347,7 +412,7 @@ function TemplatesPage() {
                   {/* Meta */}
                   <div className="flex items-center gap-2 mt-2 text-xs" style={{ color: 'var(--text-500)' }}>
                     <Clock className="w-3 h-3" />
-                    <span>{new Date(template.created_at).toLocaleDateString()}</span>
+                    <span>{template.createdAt || template.created_at ? new Date(template.createdAt || template.created_at).toLocaleDateString() : ''}</span>
                     <span>•</span>
                     <span>{template.width}×{template.height}</span>
                   </div>
