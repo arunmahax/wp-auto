@@ -199,6 +199,10 @@ function TemplateEditorPage() {
     image_opacity: 1.0,
     image_overlay_enabled: true,
     image_overlay_color: 'rgba(0,0,0,0.2)',
+    // Two-photo-stack image sizing
+    top_image_height: 50,
+    bottom_image_height: 50,
+    image_gap: 0,
     // Text bar
     text_bar_enabled: true,
     text_bar_position: 'bottom',
@@ -781,6 +785,103 @@ function TemplateEditorPage() {
                     step={0.05}
                     className="w-full"
                   />
+                </div>
+                
+                {/* Two-Photo Stack Image Sizing */}
+                <div className="p-3 rounded-lg" style={{ background: 'var(--bg-700)' }}>
+                  <div className="flex items-center gap-2 mb-3">
+                    <Layers className="w-4 h-4" style={{ color: 'var(--primary-400)' }} />
+                    <span className="text-sm font-medium" style={{ color: 'var(--text-200)' }}>Image Stack Layout</span>
+                  </div>
+                  
+                  {/* Top Image Height */}
+                  <div className="mb-3">
+                    <label className="text-xs mb-1 block" style={{ color: 'var(--text-400)' }}>
+                      Top Image Height: {template.top_image_height}%
+                    </label>
+                    <input
+                      type="range"
+                      value={template.top_image_height}
+                      onChange={(e) => {
+                        const topHeight = Number(e.target.value);
+                        updateTemplate({ 
+                          top_image_height: topHeight,
+                          bottom_image_height: 100 - topHeight - (template.image_gap / template.height * 100)
+                        });
+                      }}
+                      min={20}
+                      max={80}
+                      className="w-full"
+                    />
+                  </div>
+                  
+                  {/* Bottom Image Height */}
+                  <div className="mb-3">
+                    <label className="text-xs mb-1 block" style={{ color: 'var(--text-400)' }}>
+                      Bottom Image Height: {template.bottom_image_height}%
+                    </label>
+                    <input
+                      type="range"
+                      value={template.bottom_image_height}
+                      onChange={(e) => {
+                        const bottomHeight = Number(e.target.value);
+                        updateTemplate({ 
+                          bottom_image_height: bottomHeight,
+                          top_image_height: 100 - bottomHeight - (template.image_gap / template.height * 100)
+                        });
+                      }}
+                      min={20}
+                      max={80}
+                      className="w-full"
+                    />
+                  </div>
+                  
+                  {/* Image Gap */}
+                  <div>
+                    <label className="text-xs mb-1 block" style={{ color: 'var(--text-400)' }}>
+                      Gap Between Images: {template.image_gap}px
+                    </label>
+                    <input
+                      type="range"
+                      value={template.image_gap}
+                      onChange={(e) => updateTemplate({ image_gap: Number(e.target.value) })}
+                      min={0}
+                      max={100}
+                      className="w-full"
+                    />
+                  </div>
+                  
+                  {/* Quick presets */}
+                  <div className="flex gap-2 mt-3">
+                    <button
+                      className="flex-1 py-1.5 text-xs rounded bg-white/5 hover:bg-white/10"
+                      style={{ color: 'var(--text-300)' }}
+                      onClick={() => updateTemplate({ top_image_height: 50, bottom_image_height: 50, image_gap: 0 })}
+                    >
+                      50/50
+                    </button>
+                    <button
+                      className="flex-1 py-1.5 text-xs rounded bg-white/5 hover:bg-white/10"
+                      style={{ color: 'var(--text-300)' }}
+                      onClick={() => updateTemplate({ top_image_height: 60, bottom_image_height: 40, image_gap: 0 })}
+                    >
+                      60/40
+                    </button>
+                    <button
+                      className="flex-1 py-1.5 text-xs rounded bg-white/5 hover:bg-white/10"
+                      style={{ color: 'var(--text-300)' }}
+                      onClick={() => updateTemplate({ top_image_height: 40, bottom_image_height: 60, image_gap: 0 })}
+                    >
+                      40/60
+                    </button>
+                    <button
+                      className="flex-1 py-1.5 text-xs rounded bg-white/5 hover:bg-white/10"
+                      style={{ color: 'var(--text-300)' }}
+                      onClick={() => updateTemplate({ top_image_height: 47, bottom_image_height: 47, image_gap: 20 })}
+                    >
+                      With Gap
+                    </button>
+                  </div>
                 </div>
                 
                 {/* Background Color (for areas without image) */}

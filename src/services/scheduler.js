@@ -380,15 +380,20 @@ async function processNextRecipe(projectId, userId, jobId = null) {
     let pinImageUrl = null;
     let pinImageBuffer = null;
 
-    // Check if project has a template configured (internal pin generator)
-    if (project.template_id && mjImages.length > 0) {
+    // Check if project has templates configured (internal pin generator)
+    const templateIds = project.template_ids || [];
+    if (templateIds.length > 0 && mjImages.length > 0) {
       try {
         console.log(`[Scheduler] Step 5: Generating Pinterest pin with template...`);
         
+        // Randomly select a template from the configured list
+        const selectedTemplateId = templateIds[Math.floor(Math.random() * templateIds.length)];
+        console.log(`[Scheduler] Selected template ${selectedTemplateId} from ${templateIds.length} options`);
+        
         // Load the template
-        const template = await Template.findByPk(project.template_id);
+        const template = await Template.findByPk(selectedTemplateId);
         if (!template) {
-          console.warn(`[Scheduler] Template ${project.template_id} not found, skipping pin generation`);
+          console.warn(`[Scheduler] Template ${selectedTemplateId} not found, skipping pin generation`);
         } else {
           // Get pin generator service
           const pinGenService = getPinGeneratorService();

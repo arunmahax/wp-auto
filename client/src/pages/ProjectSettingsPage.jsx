@@ -25,7 +25,7 @@ export default function ProjectSettingsPage() {
     content_authors: '',
     image_prompt_template: '',
     pin_design_config: '',
-    template_id: null,
+    template_ids: [],
     pin_design_mode: 'json', // 'json' or 'template'
     rss_feeds: [],
     spy_keywords: [],
@@ -54,6 +54,7 @@ export default function ProjectSettingsPage() {
         const data = projRes.data;
         setProject(data);
         setTemplates(templatesRes || []);
+        const templateIds = data.template_ids || [];
         setForm({
           google_sheet_url: data.google_sheet_url || '',
           trigger_interval: data.trigger_interval || 'disabled',
@@ -62,8 +63,8 @@ export default function ProjectSettingsPage() {
           content_authors: data.content_authors || '',
           image_prompt_template: data.image_prompt_template || '',
           pin_design_config: data.pin_design_config || '',
-          template_id: data.template_id || null,
-          pin_design_mode: data.template_id ? 'template' : 'json',
+          template_ids: templateIds,
+          pin_design_mode: templateIds.length > 0 ? 'template' : 'json',
           rss_feeds: data.rss_feeds || [],
           spy_keywords: data.spy_keywords || [],
         });
@@ -144,7 +145,7 @@ export default function ProjectSettingsPage() {
       if (form.pin_design_mode === 'template') {
         payload.pin_design_config = null; // Clear JSON when using template
       } else {
-        payload.template_id = null; // Clear template when using JSON
+        payload.template_ids = []; // Clear templates when using JSON
         if (!payload.pin_design_config) payload.pin_design_config = null;
       }
       
@@ -581,7 +582,17 @@ export default function ProjectSettingsPage() {
           {/* Template Selection */}
           {form.pin_design_mode === 'template' && (
             <div>
-              <label className="label">Select Template</label>
+              <div className="flex items-center justify-between mb-2">
+                <label className="label mb-0">Select Templates</label>
+                {form.template_ids.length > 0 && (
+                  <span className="text-xs px-2 py-1 rounded-full" style={{ background: 'var(--primary-500)/20', color: 'var(--primary-400)' }}>
+                    {form.template_ids.length} selected
+                  </span>
+                )}
+              </div>
+              <p className="text-xs mb-3" style={{ color: 'var(--text-500)' }}>
+                Select one or more templates. When multiple are selected, the pipeline randomly picks one each time.
+              </p>
               {templates.length === 0 ? (
                 <div 
                   className="p-4 rounded-lg text-center"
@@ -597,51 +608,111 @@ export default function ProjectSettingsPage() {
                   </Link>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {templates.map((tpl) => (
-                    <button
-                      key={tpl.id}
-                      type="button"
-                      className={`p-4 rounded-lg text-left transition-all ${
-                        form.template_id === tpl.id 
-                          ? 'ring-2 ring-primary-500 bg-primary-500/10' 
-                          : 'bg-white/5 hover:bg-white/10'
-                      }`}
-                      onClick={() => setForm(prev => ({ ...prev, template_id: tpl.id }))}
-                    >
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <span className="font-medium block" style={{ color: 'var(--text-100)' }}>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {templates.map((tpl) => {
+                    const isSelected = form.template_ids.includes(tpl.id);
+                    return (
+                      <button
+                        key={tpl.id}
+                        type="button"
+                        className={`relative rounded-lg overflow-hidden transition-all ${
+                          isSelected 
+                            ? 'ring-2 ring-primary-500 ring-offset-2 ring-offset-slate-900' 
+                            : 'hover:ring-1 hover:ring-white/20'
+                        }`}
+                        onClick={() => {
+                          setForm(prev => ({
+                            ...prev,
+                            template_ids: isSelected
+                              ? prev.template_ids.filter(id => id !== tpl.id)
+                              : [...prev.template_ids, tpl.id]
+                          }));
+                        }}
+                      >
+                        {/* Template Preview */}
+                        <div 
+                          className="aspect-[2/3] w-full relative"
+                          style={{ 
+                            background: tpl.preview_image 
+                              ? `url(${tpl.preview_image}) center/cover` 
+                              : `linear-gradient(135deg, ${tpl.text_bar_color || '#fff'} 60%, ${tpl.background_color || '#1a1a2e'} 60%)`,
+                          }}
+                        >
+                          {/* Preview mockup if no preview_image */}
+                          {!tpl.preview_image && (
+                            <div className="absolute inset-0 flex flex-col">
+                              <div 
+                                className="flex-1"
+                                style={{ 
+                                  background: tpl.background_color || '#1a1a2e',
+                                  opacity: tpl.image_opacity || 1
+                                }}
+                              />
+                              <div 
+                                className="p-2 text-center"
+                                style={{ 
+                                  background: tpl.text_bar_color || '#ffffff',
+                                  height: '40%',
+                                  opacity: tpl.text_bar_opacity || 1
+                                }}
+                              >
+                                <span 
+                                  className="font-semibold text-xs line-clamp-2"
+                                  style={{ 
+                                    color: tpl.title_color || '#1a1a2e',
+                                    fontFamily: tpl.title_font || 'Montserrat'
+                                  }}
+                                >
+                                  Sample Title
+                                </span>
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* Selection indicator */}
+                          {isSelected && (
+                            <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-primary-500 flex items-center justify-center">
+                              <CheckCircle2 className="w-4 h-4 text-white" />
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Template info */}
+                        <div className="p-2 text-left" style={{ background: 'var(--bg-700)' }}>
+                          <span className="font-medium text-xs block truncate" style={{ color: 'var(--text-100)' }}>
                             {tpl.name}
                           </span>
                           <span className="text-xs" style={{ color: 'var(--text-500)' }}>
-                            {tpl.width}×{tpl.height} • {tpl.layout}
+                            {tpl.width}×{tpl.height}
                           </span>
                         </div>
-                        {form.template_id === tpl.id && (
-                          <CheckCircle2 className="w-5 h-5" style={{ color: 'var(--primary-400)' }} />
-                        )}
-                      </div>
-                      {tpl.description && (
-                        <p className="text-xs mt-2" style={{ color: 'var(--text-400)' }}>
-                          {tpl.description}
-                        </p>
-                      )}
-                      {tpl.is_system && (
-                        <span 
-                          className="text-xs px-2 py-0.5 rounded mt-2 inline-block"
-                          style={{ background: 'var(--bg-600)', color: 'var(--text-400)' }}
-                        >
-                          System Template
-                        </span>
-                      )}
-                    </button>
-                  ))}
+                      </button>
+                    );
+                  })}
                 </div>
               )}
-              <p className="text-xs mt-2" style={{ color: 'var(--text-500)' }}>
-                Templates define how your pins will look. The title and images are automatically filled in during generation.
-              </p>
+              
+              {/* Selection actions */}
+              {templates.length > 0 && (
+                <div className="flex gap-2 mt-3">
+                  <button
+                    type="button"
+                    className="text-xs px-3 py-1.5 rounded bg-white/5 hover:bg-white/10 transition-colors"
+                    style={{ color: 'var(--text-300)' }}
+                    onClick={() => setForm(prev => ({ ...prev, template_ids: templates.map(t => t.id) }))}
+                  >
+                    Select All
+                  </button>
+                  <button
+                    type="button"
+                    className="text-xs px-3 py-1.5 rounded bg-white/5 hover:bg-white/10 transition-colors"
+                    style={{ color: 'var(--text-300)' }}
+                    onClick={() => setForm(prev => ({ ...prev, template_ids: [] }))}
+                  >
+                    Clear Selection
+                  </button>
+                </div>
+              )}
             </div>
           )}
           

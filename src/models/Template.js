@@ -92,6 +92,22 @@ const Template = sequelize.define('Template', {
     allowNull: true,
     defaultValue: 1.0,
   },
+  // Top/Bottom image sizing (for two-photo-stack layout)
+  top_image_height: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    defaultValue: 50, // percentage of canvas
+  },
+  bottom_image_height: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    defaultValue: 50, // percentage of canvas
+  },
+  image_gap: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    defaultValue: 0, // gap between images in pixels
+  },
   // Title text settings
   title_font: {
     type: DataTypes.STRING(100),
