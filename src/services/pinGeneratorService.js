@@ -39,11 +39,21 @@ async function loadGoogleFont(fontFamily, weight = '400') {
       const formattedFamily = fontFamily.replace(/\s+/g, '+');
       const cssUrl = `https://fonts.googleapis.com/css2?family=${formattedFamily}:wght@${weight}&display=swap`;
       
-      const cssResponse = await axios.get(cssUrl, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+      let cssResponse;
+      try {
+        cssResponse = await axios.get(cssUrl, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+          }
+        });
+      } catch (cssErr) {
+        // Some fonts only have weight 400 — fall back
+        if (weight !== '400') {
+          console.warn(`Font ${fontFamily} weight ${weight} not available, trying 400`);
+          return loadGoogleFont(fontFamily, '400');
         }
-      });
+        throw cssErr;
+      }
       
       // Extract font URL from CSS
       const fontUrlMatch = cssResponse.data.match(/url\((https:\/\/fonts\.gstatic\.com[^)]+)\)/);
@@ -373,8 +383,8 @@ async function generatePin(template, data) {
     }
   }
   
-  // Return PNG buffer
-  return canvas.toBuffer('image/png');
+  // Return WebP buffer (much smaller than PNG)
+  return canvas.toBuffer('image/webp');
 }
 
 /**

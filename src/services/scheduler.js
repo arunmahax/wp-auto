@@ -459,7 +459,7 @@ async function processNextRecipe(projectId, userId, jobId = null) {
         if (pinImageBuffer) {
           // Use buffer upload for internally generated pins
           pinMedia = await wpPublishService.uploadImageFromBuffer(
-            wpClient, pinImageBuffer, `${slug}-pin.png`, recipe.title, 'image/png',
+            wpClient, pinImageBuffer, `${slug}-pin.webp`, recipe.title, 'image/webp',
           );
         } else {
           // Use URL upload for external pin generator

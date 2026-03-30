@@ -118,6 +118,7 @@ async function uploadImageFromBuffer(client, imageBuffer, filename, altText, con
         'Content-Type': contentType,
         'Content-Disposition': `attachment; filename="${filename}"`,
       },
+      timeout: 60000, // 60s for large buffers
     });
 
     if (altText && data.id) {
