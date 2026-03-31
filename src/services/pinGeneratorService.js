@@ -180,7 +180,7 @@ async function generatePin(template, data) {
   const ctx = canvas.getContext('2d');
   
   // Load required fonts
-  await loadGoogleFont(template.title_font || 'Montserrat', '700');
+  await loadGoogleFont(template.title_font || 'Montserrat', String(template.title_weight || 700));
   if (template.pretitle_enabled && template.pretitle_font) {
     await loadGoogleFont(template.pretitle_font, String(template.pretitle_weight || 400));
   }
@@ -189,6 +189,9 @@ async function generatePin(template, data) {
   }
   if (template.website_enabled && template.website_font) {
     await loadGoogleFont(template.website_font, '400');
+  }
+  if (template.badge_enabled && template.badge_font) {
+    await loadGoogleFont(template.badge_font, '700');
   }
   
   // Draw background
@@ -272,6 +275,11 @@ async function generatePin(template, data) {
       if (loadedImages[0]) {
         drawCoverImage(ctx, loadedImages[0], 0, topY, width, topImageHeight);
         
+        // Image opacity on top image
+        if (template.image_opacity != null && template.image_opacity < 1) {
+          ctx.fillStyle = `rgba(255,255,255,${1 - template.image_opacity})`;
+          ctx.fillRect(0, topY, width, topImageHeight);
+        }
         // Overlay on top image
         if (template.image_overlay_enabled) {
           ctx.fillStyle = template.image_overlay_color || 'rgba(0,0,0,0.2)';
@@ -284,6 +292,11 @@ async function generatePin(template, data) {
         const bottomImg = loadedImages[1] || loadedImages[0];
         drawCoverImage(ctx, bottomImg, 0, bottomY, width, bottomImageHeight);
         
+        // Image opacity on bottom image
+        if (template.image_opacity != null && template.image_opacity < 1) {
+          ctx.fillStyle = `rgba(255,255,255,${1 - template.image_opacity})`;
+          ctx.fillRect(0, bottomY, width, bottomImageHeight);
+        }
         // Overlay on bottom image
         if (template.image_overlay_enabled) {
           ctx.fillStyle = template.image_overlay_color || 'rgba(0,0,0,0.2)';
@@ -304,6 +317,11 @@ async function generatePin(template, data) {
       // Single image full background
       drawCoverImage(ctx, loadedImages[0], 0, 0, width, height);
       
+      // Image opacity for full background
+      if (template.image_opacity != null && template.image_opacity < 1) {
+        ctx.fillStyle = `rgba(255,255,255,${1 - template.image_opacity})`;
+        ctx.fillRect(0, 0, width, height);
+      }
       // Overlay
       if (template.image_overlay_enabled) {
         ctx.fillStyle = template.image_overlay_color || 'rgba(0,0,0,0.3)';
@@ -336,7 +354,7 @@ async function generatePin(template, data) {
     
     // Bar background
     ctx.fillStyle = template.text_bar_color || '#ffffff';
-    ctx.globalAlpha = template.text_bar_opacity || 1;
+    ctx.globalAlpha = template.text_bar_opacity ?? 1;
     ctx.fillRect(0, barY, width, barHeight);
     ctx.globalAlpha = 1;
     
@@ -348,42 +366,96 @@ async function generatePin(template, data) {
       ctx.strokeRect(0, barY, width, barHeight);
     }
     
-    // Calculate vertical center offset for pre-title/title/subtitle stack
+    // --- Properly measured text stack (pretitle + title + subtitle) ---
+    const titleMaxWidth = width * ((template.title_max_width || 90) / 100);
     const hasPretitle = template.pretitle_enabled && template.pretitle_text;
     const hasSubtitle = template.subtitle_enabled && (subtitle || template.subtitle_text);
     const pretitleSize = template.pretitle_size || 28;
     const subtitleSize = template.subtitle_size || 32;
-    
-    // Estimate total stack height to center everything
-    let stackOffset = 0;
-    if (hasPretitle) stackOffset -= (pretitleSize + 10) / 2;
-    if (hasSubtitle) stackOffset -= (subtitleSize + 10) / 2;
-    
-    const titleY = barY + barHeight / 2 + stackOffset;
+    const titleLineHeight = template.title_line_height || 1.2;
+    const titleWeight = template.title_weight || 700;
+    const fontFamily = template.title_font || 'Montserrat';
+    const spacing = 12; // gap between pretitle→title and title→subtitle
 
-    // Draw pre-title above the title
+    // Measure pretitle height
+    let pretitleH = 0;
+    if (hasPretitle) {
+      pretitleH = pretitleSize + spacing;
+    }
+
+    // Measure title height (auto-shrink)
+    let titleFontSize = template.title_size || 72;
+    const minTitleSize = 28;
+    const maxLines = template.title_max_lines || 4;
+    let titleLines;
+    const fontWeightStr = titleWeight >= 700 ? 'bold' : (titleWeight >= 500 ? '500' : 'normal');
+    
+    while (titleFontSize >= minTitleSize) {
+      ctx.font = `${fontWeightStr} ${titleFontSize}px "${fontFamily}"`;
+      titleLines = wrapText(ctx, title.toUpperCase(), titleMaxWidth);
+      if (titleLines.length <= maxLines) break;
+      titleFontSize -= 4;
+    }
+    if (titleLines.length > maxLines) {
+      titleLines = titleLines.slice(0, maxLines);
+      titleLines[maxLines - 1] = titleLines[maxLines - 1].replace(/\s+\S*$/, '') + '...';
+    }
+    const titleLineH = titleFontSize * titleLineHeight;
+    const titleBlockH = titleLines.length * titleLineH;
+
+    // Measure subtitle height
+    let subtitleH = 0;
+    if (hasSubtitle) {
+      subtitleH = spacing + subtitleSize;
+    }
+
+    // Total stack and vertical centering within bar
+    const totalStackH = pretitleH + titleBlockH + subtitleH;
+    let cursorY = barY + (barHeight - totalStackH) / 2;
+
+    // Draw pre-title
     if (hasPretitle) {
       ctx.fillStyle = template.pretitle_color || '#666666';
       ctx.font = `${template.pretitle_weight || 400} ${pretitleSize}px "${template.pretitle_font || 'Montserrat'}"`;
       ctx.textAlign = template.title_alignment || 'center';
-      ctx.fillText(template.pretitle_text.toUpperCase(), width / 2, titleY - (template.title_size || 72) * 0.7);
+      ctx.textBaseline = 'top';
+      ctx.fillText(template.pretitle_text.toUpperCase(), width / 2, cursorY);
+      cursorY += pretitleH;
     }
-    
-    drawTitle(ctx, title, width / 2, titleY, template, width * 0.9);
-    
+
+    // Draw title lines
+    ctx.font = `${fontWeightStr} ${titleFontSize}px "${fontFamily}"`;
+    ctx.fillStyle = template.title_color || '#000000';
+    ctx.textBaseline = 'top';
+    titleLines.forEach((line, i) => {
+      const lineY = cursorY + i * titleLineH;
+      drawStyledText(ctx, line, width / 2, lineY, {
+        align: template.title_alignment || 'center',
+        outline: template.title_outline_enabled,
+        outlineColor: template.title_outline_color || '#ffffff',
+        outlineWidth: template.title_outline_width || 3,
+        shadow: template.title_shadow_enabled,
+        shadowColor: template.title_shadow_color || 'rgba(0,0,0,0.5)',
+        shadowBlur: template.title_shadow_blur || 4,
+      });
+    });
+    cursorY += titleBlockH;
+
     // Draw subtitle
     if (hasSubtitle) {
+      cursorY += spacing;
       const subtitleText = subtitle || template.subtitle_text;
       ctx.fillStyle = template.subtitle_color || '#666666';
       ctx.font = `${template.subtitle_weight || 400} ${subtitleSize}px "${template.subtitle_font || 'Montserrat'}"`;
       ctx.textAlign = 'center';
-      ctx.fillText(subtitleText, width / 2, titleY + (template.title_size || 72) * 0.8);
+      ctx.textBaseline = 'top';
+      ctx.fillText(subtitleText, width / 2, cursorY);
     }
     
   } else {
-    // Overlay text on image
-    const titleY = height / 2;
-    drawTitle(ctx, title, width / 2, titleY, template, width * 0.9);
+    // Overlay text on image (no text bar)
+    const titleMaxWidth = width * ((template.title_max_width || 90) / 100);
+    drawTitle(ctx, title, width / 2, height / 2, template, titleMaxWidth);
   }
   
   // Draw website
@@ -405,7 +477,38 @@ async function generatePin(template, data) {
     ctx.fillText(website, width / 2, websiteY);
   }
   
-  // Draw badges (for badge-style layout)
+  // Draw single badge from template fields
+  if (template.badge_enabled && template.badge_text) {
+    const bp = template.badge_position || 'top-left';
+    const badgeFontSize = template.badge_size || 24;
+    const badgeFontFamily = template.badge_font || 'Montserrat';
+    const badgeBg = template.badge_background || '#E60023';
+    const badgeColor = template.badge_color || '#ffffff';
+    const padding = 15;
+    const borderRadius = 8;
+
+    ctx.font = `bold ${badgeFontSize}px "${badgeFontFamily}"`;
+    const textWidth = ctx.measureText(template.badge_text).width;
+    const boxWidth = textWidth + padding * 2;
+    const boxHeight = badgeFontSize + padding * 2;
+
+    let bx, by;
+    if (bp === 'top-right') { bx = width - boxWidth - 20; by = 20; }
+    else if (bp === 'bottom-left') { bx = 20; by = height - boxHeight - 20; }
+    else if (bp === 'bottom-right') { bx = width - boxWidth - 20; by = height - boxHeight - 20; }
+    else { bx = 20; by = 20; } // top-left default
+
+    ctx.fillStyle = badgeBg;
+    roundRect(ctx, bx, by, boxWidth, boxHeight, borderRadius);
+    ctx.fill();
+
+    ctx.fillStyle = badgeColor;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(template.badge_text, bx + boxWidth / 2, by + boxHeight / 2);
+  }
+
+  // Legacy badges_config support
   if (template.badges_enabled && template.badges_config) {
     const badges = JSON.parse(template.badges_config);
     for (const badge of badges) {
@@ -445,7 +548,10 @@ function drawCoverImage(ctx, img, x, y, targetWidth, targetHeight) {
 function drawTitle(ctx, title, x, y, template, maxWidth) {
   const fontFamily = template.title_font || 'Montserrat';
   const maxLines = template.title_max_lines || 4;
+  const titleWeight = template.title_weight || 700;
+  const titleLineHeight = template.title_line_height || 1.2;
   const text = title.toUpperCase();
+  const fontWeightStr = titleWeight >= 700 ? 'bold' : (titleWeight >= 500 ? '500' : 'normal');
   
   // Auto-shrink font size until text fits within maxLines
   let fontSize = template.title_size || 72;
@@ -453,7 +559,7 @@ function drawTitle(ctx, title, x, y, template, maxWidth) {
   let lines;
   
   while (fontSize >= minFontSize) {
-    ctx.font = `bold ${fontSize}px "${fontFamily}"`;
+    ctx.font = `${fontWeightStr} ${fontSize}px "${fontFamily}"`;
     lines = wrapText(ctx, text, maxWidth);
     if (lines.length <= maxLines) break;
     fontSize -= 4;
@@ -465,10 +571,10 @@ function drawTitle(ctx, title, x, y, template, maxWidth) {
     lines[maxLines - 1] = lines[maxLines - 1].replace(/\s+\S*$/, '') + '...';
   }
   
-  ctx.font = `bold ${fontSize}px "${fontFamily}"`;
+  ctx.font = `${fontWeightStr} ${fontSize}px "${fontFamily}"`;
   ctx.fillStyle = template.title_color || '#000000';
   
-  const lineHeight = fontSize * 1.2;
+  const lineHeight = fontSize * titleLineHeight;
   const totalHeight = lines.length * lineHeight;
   const startY = y - totalHeight / 2 + lineHeight / 2;
   
