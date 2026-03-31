@@ -6,6 +6,7 @@ const upsertSettingsSchema = Joi.object({
   content_api_key: Joi.string().allow('', null),
   pin_generator_url: Joi.string().uri().allow('', null),
   pin_generator_key: Joi.string().allow('', null),
+  openai_api_key: Joi.string().allow('', null),
 }).min(1).messages({
   'object.min': 'At least one field must be provided',
 });
