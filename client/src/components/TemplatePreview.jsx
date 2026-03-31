@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 /**
  * Reusable Template Preview Component
@@ -32,16 +32,33 @@ function loadFontsForTemplate(tpl) {
   document.head.appendChild(link);
 }
 
-export default function TemplatePreview({ template: tpl, containerWidth = 200, containerHeight = 300, showTitle = true, titleText = 'Easy Chicken Recipe' }) {
+export default function TemplatePreview({ template: tpl, containerWidth = 200, containerHeight = 300, showTitle = true, titleText = 'Easy Chicken Recipe', fillContainer = false }) {
+  const fillRef = useRef(null);
+  const [fillWidth, setFillWidth] = useState(0);
+
   useEffect(() => {
     if (tpl) loadFontsForTemplate(tpl);
   }, [tpl]);
+
+  useEffect(() => {
+    if (!fillContainer) return;
+    const el = fillRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([e]) => {
+      const w = Math.round(e.contentRect.width);
+      if (w > 0) setFillWidth(w);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [fillContainer]);
   
   if (!tpl) return null;
   
   const width = tpl.width || 1000;
   const height = tpl.height || 1500;
-  const scale = Math.min(containerWidth / width, containerHeight / height);
+  const scale = fillContainer
+    ? (fillWidth || containerWidth) / width
+    : Math.min(containerWidth / width, containerHeight / height);
   const pw = width * scale;
   const ph = height * scale;
   
@@ -71,7 +88,7 @@ export default function TemplatePreview({ template: tpl, containerWidth = 200, c
   
   const titleFontSize = Math.max(8, (tpl.title_size || 64) * scale);
   
-  return (
+  const previewEl = (
     <div
       style={{
         position: 'relative',
@@ -80,7 +97,7 @@ export default function TemplatePreview({ template: tpl, containerWidth = 200, c
         background: tpl.background_color || '#1a1a2e',
         overflow: 'hidden',
         borderRadius: 4 * scale,
-        margin: '0 auto',
+        ...(!fillContainer ? { margin: '0 auto' } : {}),
       }}
     >
       {isStack ? (
@@ -279,4 +296,14 @@ export default function TemplatePreview({ template: tpl, containerWidth = 200, c
       )}
     </div>
   );
+
+  if (fillContainer) {
+    return (
+      <div ref={fillRef} style={{ width: '100%', overflow: 'hidden' }}>
+        {fillWidth > 0 ? previewEl : <div style={{ aspectRatio: `${width} / ${height}` }} />}
+      </div>
+    );
+  }
+
+  return previewEl;
 }

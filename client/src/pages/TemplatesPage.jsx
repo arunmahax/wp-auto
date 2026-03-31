@@ -266,10 +266,13 @@ function TemplatesPage() {
               >
                 {/* Preview */}
                 <div 
-                  className="aspect-[2/3] relative overflow-hidden flex items-center justify-center"
-                  style={{ background: template.background_color || 'var(--bg-700)' }}
+                  className="relative overflow-hidden"
+                  style={{ 
+                    background: template.background_color || 'var(--bg-700)',
+                    maxHeight: 500,
+                  }}
                 >
-                  <TemplatePreview template={template} containerWidth={280} containerHeight={420} />
+                  <TemplatePreview template={template} fillContainer />
                   
                   {/* System badge */}
                   {template.is_system && (
