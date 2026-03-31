@@ -244,62 +244,45 @@ async function generatePin(template, data) {
   // Draw images based on layout
   if (loadedImages.length > 0) {
     if (template.layout === 'text-bar' || template.layout === 'two-photo-stack') {
-      // Get image heights from template (percentages) or calculate defaults
-      const textBarHeight = template.text_bar_enabled ? (template.text_bar_height || 200) : 0;
-      const availableHeight = height - textBarHeight;
+      // Images fill the FULL canvas — text bar overlays on top
+      // This ensures semi-transparent bars reveal the food photos underneath
       const imageGap = template.image_gap || 0;
       
-      // Calculate heights based on template percentages or 50/50 default
+      // Calculate heights based on FULL canvas (not subtracting text bar)
       let topImageHeight, bottomImageHeight;
       
       if (template.top_image_height && template.bottom_image_height) {
-        // Use percentages from template — distribute available space proportionally
         const totalPct = template.top_image_height + template.bottom_image_height;
-        const usableHeight = availableHeight - imageGap;
+        const usableHeight = height - imageGap;
         topImageHeight = Math.floor(usableHeight * (template.top_image_height / totalPct));
-        bottomImageHeight = usableHeight - topImageHeight; // give remainder to bottom to avoid gaps
+        bottomImageHeight = usableHeight - topImageHeight;
       } else {
-        // Default 50/50 split
-        topImageHeight = Math.floor((availableHeight - imageGap) / 2);
-        bottomImageHeight = availableHeight - imageGap - topImageHeight;
+        topImageHeight = Math.floor((height - imageGap) / 2);
+        bottomImageHeight = height - imageGap - topImageHeight;
       }
       
-      // Calculate positions based on text bar position
-      let topY = 0;
-      let textBarY = 0;
-      let bottomY = 0;
-      
-      if (template.text_bar_position === 'top') {
-        // Text bar on top: [textbar] [top img] [gap] [bottom img]
-        textBarY = 0;
-        topY = textBarHeight;
-        bottomY = topY + topImageHeight + imageGap;
-      } else if (template.text_bar_position === 'bottom') {
-        // Text bar on bottom: [top img] [gap] [bottom img] [textbar]
-        topY = 0;
-        bottomY = topImageHeight + imageGap;
-        textBarY = height - textBarHeight;
-      } else {
-        // Text bar in center (between images): [top img] [textbar] [bottom img]
-        topY = 0;
-        textBarY = topImageHeight;
-        bottomY = topImageHeight + textBarHeight;
-      }
+      // Images drawn contiguously — no gap reserved for text bar
+      const topY = 0;
+      const bottomY = topImageHeight + imageGap;
       
       // Top image
       if (loadedImages[0]) {
         drawCoverImage(ctx, loadedImages[0], 0, topY, width, topImageHeight);
         
-        // Image opacity on top image
         if (template.image_opacity != null && template.image_opacity < 1) {
           ctx.fillStyle = `rgba(255,255,255,${1 - template.image_opacity})`;
           ctx.fillRect(0, topY, width, topImageHeight);
         }
-        // Overlay on top image
         if (template.image_overlay_enabled) {
           ctx.fillStyle = template.image_overlay_color || 'rgba(0,0,0,0.2)';
           ctx.fillRect(0, topY, width, topImageHeight);
         }
+      }
+      
+      // Gap area (if any, fill with background color)
+      if (imageGap > 0) {
+        ctx.fillStyle = template.background_color || '#ffffff';
+        ctx.fillRect(0, topImageHeight, width, imageGap);
       }
       
       // Bottom image
@@ -307,25 +290,14 @@ async function generatePin(template, data) {
         const bottomImg = loadedImages[1] || loadedImages[0];
         drawCoverImage(ctx, bottomImg, 0, bottomY, width, bottomImageHeight);
         
-        // Image opacity on bottom image
         if (template.image_opacity != null && template.image_opacity < 1) {
           ctx.fillStyle = `rgba(255,255,255,${1 - template.image_opacity})`;
           ctx.fillRect(0, bottomY, width, bottomImageHeight);
         }
-        // Overlay on bottom image
         if (template.image_overlay_enabled) {
           ctx.fillStyle = template.image_overlay_color || 'rgba(0,0,0,0.2)';
           ctx.fillRect(0, bottomY, width, bottomImageHeight);
         }
-      }
-      
-      // Draw gap area with background color if there's a gap
-      if (imageGap > 0 && template.text_bar_position !== 'center') {
-        ctx.fillStyle = template.background_color || '#ffffff';
-        const gapY = template.text_bar_position === 'top' 
-          ? topY + topImageHeight 
-          : topImageHeight;
-        ctx.fillRect(0, gapY, width, imageGap);
       }
       
     } else if (template.layout === 'full-background') {
@@ -395,17 +367,16 @@ async function generatePin(template, data) {
     // Dynamic bar height: at least template setting, but grows if text needs more
     const barHeight = Math.max(minBarHeight, totalStackH + barPadding * 2);
 
-    // Calculate bar Y position
+    // Calculate bar overlay position (images are behind, bar floats on top)
     let barY;
-    const availableHeight = height - barHeight;
     const imageGapBar = template.image_gap || 0;
-    let topImageHeightForBar;
+    // Find the image split point (same formula as image layout)
+    let splitPoint;
     if (template.top_image_height && template.bottom_image_height) {
       const totalPct = template.top_image_height + template.bottom_image_height;
-      const usableHeight = availableHeight - imageGapBar;
-      topImageHeightForBar = Math.floor(usableHeight * (template.top_image_height / totalPct));
+      splitPoint = Math.floor((height - imageGapBar) * (template.top_image_height / totalPct));
     } else {
-      topImageHeightForBar = Math.floor((availableHeight - imageGapBar) / 2);
+      splitPoint = Math.floor((height - imageGapBar) / 2);
     }
     
     switch (template.text_bar_position) {
@@ -415,8 +386,8 @@ async function generatePin(template, data) {
       case 'bottom':
         barY = height - barHeight;
         break;
-      default: // center - between images
-        barY = topImageHeightForBar;
+      default: // center - overlay at image split point
+        barY = Math.max(0, Math.min(height - barHeight, splitPoint - Math.floor(barHeight / 2)));
     }
     
     // Draw bar background with its own opacity (isolated)

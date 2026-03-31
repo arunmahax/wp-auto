@@ -465,27 +465,30 @@ function TemplateEditorPage() {
   const getLayoutPositions = () => {
     const totalHeight = template.height * previewScale;
     const textBarHeight = template.text_bar_enabled ? (template.text_bar_height * previewScale) : 0;
-    const availableHeight = totalHeight - textBarHeight;
     const imageGap = (template.image_gap || 0) * previewScale;
     
+    // Images fill the FULL canvas — text bar overlays on top
     const topPct = template.top_image_height || 50;
     const bottomPct = template.bottom_image_height || 50;
-    const topHeight = availableHeight * (topPct / 100);
-    const bottomHeight = availableHeight * (bottomPct / 100);
+    const totalPct = topPct + bottomPct;
+    const usableHeight = totalHeight - imageGap;
+    const topHeight = usableHeight * (topPct / totalPct);
+    const bottomHeight = usableHeight - topHeight;
     
-    let topY = 0, textBarY = 0, bottomY = 0;
+    // Images drawn contiguously (no gap for text bar)
+    const topY = 0;
+    const bottomY = topHeight + imageGap;
+    
+    // Text bar overlays at the appropriate position
+    let textBarY = 0;
     if (template.text_bar_position === 'top') {
       textBarY = 0;
-      topY = textBarHeight;
-      bottomY = topY + topHeight + imageGap;
     } else if (template.text_bar_position === 'bottom') {
-      topY = 0;
-      bottomY = topHeight + imageGap;
       textBarY = totalHeight - textBarHeight;
     } else {
-      topY = 0;
-      textBarY = topHeight;
-      bottomY = topHeight + textBarHeight;
+      // Center: overlay at image split point
+      const splitPoint = topHeight;
+      textBarY = Math.max(0, Math.min(totalHeight - textBarHeight, splitPoint - textBarHeight / 2));
     }
     
     return { totalHeight, textBarHeight, topHeight, bottomHeight, topY, textBarY, bottomY, imageGap };
@@ -1680,28 +1683,19 @@ function TemplateEditorPage() {
                   {(() => {
                     const totalHeight = template.height * previewScale;
                     const textBarHeight = template.text_bar_enabled ? (template.text_bar_height * previewScale) : 0;
-                    const availableHeight = totalHeight - textBarHeight;
                     const imageGap = (template.image_gap || 0) * previewScale;
                     
+                    // Images fill the FULL canvas — text bar overlays on top
                     const topPct = template.top_image_height || 50;
                     const bottomPct = template.bottom_image_height || 50;
-                    const topHeight = availableHeight * (topPct / 100);
-                    const bottomHeight = availableHeight * (bottomPct / 100);
+                    const totalPct = topPct + bottomPct;
+                    const usableHeight = totalHeight - imageGap;
+                    const topHeight = usableHeight * (topPct / totalPct);
+                    const bottomHeight = usableHeight - topHeight;
                     
-                    let topY = 0, textBarY = 0, bottomY = 0;
-                    if (template.text_bar_position === 'top') {
-                      textBarY = 0;
-                      topY = textBarHeight;
-                      bottomY = topY + topHeight + imageGap;
-                    } else if (template.text_bar_position === 'bottom') {
-                      topY = 0;
-                      bottomY = topHeight + imageGap;
-                      textBarY = totalHeight - textBarHeight;
-                    } else {
-                      topY = 0;
-                      textBarY = topHeight;
-                      bottomY = topHeight + textBarHeight;
-                    }
+                    // Images drawn contiguously (no gap for text bar)
+                    const topY = 0;
+                    const bottomY = topHeight + imageGap;
                     
                     return (
                       <>
@@ -1723,11 +1717,12 @@ function TemplateEditorPage() {
                             style={{ top: topY, height: topHeight, background: template.image_overlay_color }}
                           />
                         )}
-                        {imageGap > 0 && template.text_bar_position !== 'center' && (
+                        {/* Gap between images */}
+                        {imageGap > 0 && (
                           <div 
                             className="absolute left-0 right-0"
                             style={{
-                              top: template.text_bar_position === 'top' ? topY + topHeight : topHeight,
+                              top: topHeight,
                               height: imageGap,
                               background: template.background_color,
                             }}

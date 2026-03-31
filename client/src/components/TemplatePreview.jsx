@@ -62,23 +62,31 @@ export default function TemplatePreview({ template: tpl, containerWidth = 200, c
   const pw = width * scale;
   const ph = height * scale;
   
-  // Layout calculations
+  // Layout calculations — images fill FULL canvas, text bar overlays on top
   const textBarH = tpl.text_bar_enabled ? (tpl.text_bar_height || 200) * scale : 0;
-  const availableH = ph - textBarH;
   const gap = (tpl.image_gap || 0) * scale;
   const topPct = tpl.top_image_height || 50;
   const bottomPct = tpl.bottom_image_height || 50;
-  const topH = availableH * (topPct / 100);
-  const bottomH = availableH * (bottomPct / 100);
+  const totalPct = topPct + bottomPct;
+  const usableH = ph - gap;
+  const topH = usableH * (topPct / totalPct);
+  const bottomH = usableH - topH;
   
-  let topY = 0, barY = 0, bottomY = 0;
+  // Images drawn contiguously (no gap for text bar)
+  const topY = 0;
+  const bottomY = topH + gap;
+  
+  // Text bar overlays at the appropriate position
   const pos = tpl.text_bar_position || 'center';
+  let barY = 0;
   if (pos === 'top') {
-    barY = 0; topY = textBarH; bottomY = topY + topH + gap;
+    barY = 0;
   } else if (pos === 'bottom') {
-    topY = 0; bottomY = topH + gap; barY = ph - textBarH;
+    barY = ph - textBarH;
   } else {
-    topY = 0; barY = topH; bottomY = topH + textBarH;
+    // Center: overlay at image split point
+    const splitPoint = topH;
+    barY = Math.max(0, Math.min(ph - textBarH, splitPoint - textBarH / 2));
   }
   
   const isStack = tpl.layout === 'text-bar' || tpl.layout === 'two-photo-stack';
