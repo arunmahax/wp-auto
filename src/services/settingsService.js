@@ -1,7 +1,7 @@
 const { UserSettings } = require('../models');
 const { encrypt, decrypt } = require('./encryption');
 
-const ENCRYPTED_FIELDS = ['ttapi_api_key', 'content_api_key', 'pin_generator_key'];
+const ENCRYPTED_FIELDS = ['ttapi_api_key', 'content_api_key', 'pin_generator_key', 'openai_api_key'];
 
 async function get(userId) {
   const settings = await UserSettings.findOne({ where: { user_id: userId } });

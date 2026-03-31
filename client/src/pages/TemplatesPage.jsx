@@ -14,7 +14,10 @@ import {
   Search,
   Filter,
   Star,
-  Clock
+  Clock,
+  Wand2,
+  Upload,
+  X
 } from 'lucide-react';
 import * as templateApi from '../api/templates';
 import TemplatePreview from '../components/TemplatePreview';
@@ -28,6 +31,11 @@ function TemplatesPage() {
   const [filter, setFilter] = useState('all'); // all, my, system
   const [menuOpen, setMenuOpen] = useState(null);
   const [deleting, setDeleting] = useState(null);
+  const [showCloneModal, setShowCloneModal] = useState(false);
+  const [cloneImage, setCloneImage] = useState(null);
+  const [cloneImagePreview, setCloneImagePreview] = useState(null);
+  const [cloning, setCloning] = useState(false);
+  const [cloneError, setCloneError] = useState('');
 
   useEffect(() => {
     loadTemplates();
@@ -71,6 +79,39 @@ function TemplatesPage() {
     }
   };
 
+  const handleCloneImageSelect = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      setCloneError('Image must be under 10MB');
+      return;
+    }
+    setCloneError('');
+    setCloneImagePreview(URL.createObjectURL(file));
+    const reader = new FileReader();
+    reader.onload = (evt) => setCloneImage(evt.target.result);
+    reader.readAsDataURL(file);
+  };
+
+  const handleCloneSubmit = async () => {
+    if (!cloneImage) return;
+    try {
+      setCloning(true);
+      setCloneError('');
+      const config = await templateApi.cloneFromImage(cloneImage);
+      // Create the template
+      const created = await templateApi.createTemplate(config);
+      setShowCloneModal(false);
+      setCloneImage(null);
+      setCloneImagePreview(null);
+      navigate(`/templates/${created.id}/edit`);
+    } catch (err) {
+      setCloneError(err.response?.data?.error || 'Failed to clone design. Check your OpenAI key in Settings.');
+    } finally {
+      setCloning(false);
+    }
+  };
+
   const filteredTemplates = templates.filter(t => {
     // Filter by search
     if (searchQuery && !t.name.toLowerCase().includes(searchQuery.toLowerCase())) {
@@ -111,13 +152,23 @@ function TemplatesPage() {
           </div>
         </div>
         
-        <button 
-          className="btn btn-primary flex items-center gap-2"
-          onClick={() => navigate('/templates/new')}
-        >
-          <Plus className="w-4 h-4" />
-          New Template
-        </button>
+        <div className="flex items-center gap-2">
+          <button 
+            className="btn flex items-center gap-2"
+            style={{ background: 'var(--bg-700)', color: 'var(--text-200)', border: '1px solid var(--border)' }}
+            onClick={() => setShowCloneModal(true)}
+          >
+            <Wand2 className="w-4 h-4" />
+            Clone Design
+          </button>
+          <button 
+            className="btn btn-primary flex items-center gap-2"
+            onClick={() => navigate('/templates/new')}
+          >
+            <Plus className="w-4 h-4" />
+            New Template
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -347,6 +398,81 @@ function TemplatesPage() {
           className="fixed inset-0 z-0" 
           onClick={() => setMenuOpen(null)}
         />
+      )}
+
+      {/* Clone from Image Modal */}
+      {showCloneModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.7)' }}>
+          <div className="w-full max-w-lg rounded-xl p-6" style={{ background: 'var(--bg-800)', border: '1px solid var(--border)' }}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold flex items-center gap-2" style={{ color: 'var(--text-100)' }}>
+                <Wand2 className="w-5 h-5" style={{ color: 'var(--primary-400)' }} />
+                Clone Competitor Design
+              </h2>
+              <button onClick={() => { setShowCloneModal(false); setCloneImage(null); setCloneImagePreview(null); setCloneError(''); }} className="p-1 rounded hover:bg-white/10">
+                <X className="w-5 h-5" style={{ color: 'var(--text-400)' }} />
+              </button>
+            </div>
+
+            <p className="text-sm mb-4" style={{ color: 'var(--text-400)' }}>
+              Upload a screenshot of a Pinterest pin design. AI will analyze the layout, colors, fonts, and styling to create a matching template.
+            </p>
+
+            {!cloneImagePreview ? (
+              <label className="flex flex-col items-center justify-center gap-3 py-12 rounded-lg border-2 border-dashed cursor-pointer hover:border-primary-500 transition-colors"
+                style={{ borderColor: 'var(--border)', background: 'var(--bg-900)' }}>
+                <Upload className="w-8 h-8" style={{ color: 'var(--text-500)' }} />
+                <span className="text-sm" style={{ color: 'var(--text-400)' }}>Click to upload pin image</span>
+                <span className="text-xs" style={{ color: 'var(--text-500)' }}>PNG, JPG, WebP — max 10MB</span>
+                <input type="file" accept="image/*" className="hidden" onChange={handleCloneImageSelect} />
+              </label>
+            ) : (
+              <div className="relative mb-4">
+                <img src={cloneImagePreview} alt="Pin to clone" className="w-full max-h-80 object-contain rounded-lg" style={{ background: 'var(--bg-900)' }} />
+                <button
+                  className="absolute top-2 right-2 p-1 rounded-full"
+                  style={{ background: 'rgba(0,0,0,0.6)' }}
+                  onClick={() => { setCloneImage(null); setCloneImagePreview(null); }}
+                >
+                  <X className="w-4 h-4 text-white" />
+                </button>
+              </div>
+            )}
+
+            {cloneError && (
+              <div className="text-sm mt-3 p-2 rounded" style={{ color: 'var(--error-400)', background: 'rgba(220,38,38,0.1)' }}>
+                {cloneError}
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2 mt-4">
+              <button
+                className="btn"
+                style={{ background: 'var(--bg-700)', color: 'var(--text-300)' }}
+                onClick={() => { setShowCloneModal(false); setCloneImage(null); setCloneImagePreview(null); setCloneError(''); }}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn btn-primary flex items-center gap-2"
+                onClick={handleCloneSubmit}
+                disabled={!cloneImage || cloning}
+              >
+                {cloning ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Analyzing...
+                  </>
+                ) : (
+                  <>
+                    <Wand2 className="w-4 h-4" />
+                    Clone Design
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

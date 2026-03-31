@@ -1,5 +1,7 @@
 const { Template, User } = require('../models');
 const { Op } = require('sequelize');
+const axios = require('axios');
+const settingsService = require('../services/settingsService');
 
 // Lazy-load pin generator to avoid startup issues if canvas not installed
 let pinGenerator = null;
@@ -379,6 +381,147 @@ const generatePin = async (req, res) => {
   }
 };
 
+// Clone template design from an uploaded image using GPT-4 Vision
+const cloneFromImage = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { image } = req.body; // base64 data URL
+
+    if (!image || !image.startsWith('data:image/')) {
+      return res.status(400).json({ error: 'A valid base64 image is required' });
+    }
+
+    // Get user's OpenAI key
+    const keys = await settingsService.getRawKeys(userId);
+    const apiKey = keys?.openai_api_key;
+    if (!apiKey) {
+      return res.status(400).json({ error: 'OpenAI API key not configured. Add it in Settings.' });
+    }
+
+    const systemPrompt = `You are a Pinterest pin template design analyzer. Given an image of a Pinterest pin, analyze its visual design and return a JSON object that replicates the layout.
+
+Return ONLY valid JSON (no markdown, no explanation) with these fields:
+
+{
+  "name": "string - descriptive name for this design",
+  "layout": "text-bar",
+  "width": 1000,
+  "height": 1500,
+  "background_type": "images",
+  "background_color": "#hex",
+  "text_bar_enabled": true/false,
+  "text_bar_color": "#hex",
+  "text_bar_opacity": 0-1,
+  "text_bar_position": "top" | "center" | "bottom",
+  "text_bar_height": 100-800 (pixels),
+  "text_bar_stroke_enabled": true/false,
+  "text_bar_stroke_color": "#hex",
+  "text_bar_stroke_width": 1-10,
+  "top_image_height": 20-80 (percentage),
+  "bottom_image_height": 20-80 (percentage),
+  "image_gap": 0-20 (pixels),
+  "image_overlay_enabled": true/false,
+  "image_overlay_color": "rgba(r,g,b,a)",
+  "title_font": "Google Font name from this list: Montserrat, Roboto, Poppins, Playfair Display, Oswald, Lato, Raleway, Bebas Neue, Anton, Abril Fatface, Lobster, Pacifico, Dancing Script, Permanent Marker, Righteous, Alfa Slab One, Russo One, DM Serif Display, Cinzel, Merriweather, Inter, Work Sans, DM Sans, Outfit, Lilita One, Dela Gothic One, Barlow Condensed, Teko, Lora, Fraunces, Sacramento, Amatic SC, Caveat",
+  "title_size": 32-120 (pixels for 1000px wide canvas),
+  "title_weight": 400 | 700 | 800 | 900,
+  "title_color": "#hex",
+  "title_alignment": "left" | "center" | "right",
+  "title_line_height": 0.8-1.8,
+  "title_max_width": 70-95 (percentage),
+  "title_outline_enabled": true/false,
+  "title_outline_color": "#hex",
+  "title_outline_width": 1-6,
+  "title_shadow_enabled": true/false,
+  "title_shadow_color": "rgba(r,g,b,a)",
+  "title_shadow_blur": 0-20,
+  "title_max_lines": 2-5,
+  "subtitle_enabled": true/false,
+  "subtitle_text": "string like EASY | QUICK | HEALTHY",
+  "subtitle_font": "Google Font name",
+  "subtitle_size": 16-48,
+  "subtitle_weight": 400 | 700,
+  "subtitle_color": "#hex",
+  "website_enabled": true/false,
+  "website_text": "website url if visible",
+  "website_font": "Google Font name",
+  "website_size": 16-36,
+  "website_color": "#hex",
+  "website_position": "top" | "bottom",
+  "website_background": "#hex or empty string",
+  "badge_enabled": true/false,
+  "badge_text": "string like RECIPE, NEW, etc",
+  "badge_position": "top-left" | "top-right" | "bottom-left" | "bottom-right",
+  "badge_background": "#hex",
+  "badge_color": "#hex",
+  "badge_font": "Google Font name",
+  "badge_size": 16-36
+}
+
+Key rules:
+- Keep width=1000 and height=1500 (Pinterest standard)
+- Match colors as closely as possible using hex codes
+- Pick the closest matching Google Font
+- If the pin has two food photos stacked (top and bottom) with a text bar in between, use text_bar_position="center" and estimate top_image_height/bottom_image_height
+- If text is directly on the image with no bar, set text_bar_enabled=false
+- If there's a colored overlay on images, set image_overlay_enabled=true with appropriate rgba color
+- Analyze the text styling carefully: size, weight, shadow, outline effects`;
+
+    const response = await axios.post(
+      'https://api.openai.com/v1/chat/completions',
+      {
+        model: 'gpt-4o',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          {
+            role: 'user',
+            content: [
+              { type: 'text', text: 'Analyze this Pinterest pin design and return the template JSON config that replicates its layout, colors, fonts, and styling.' },
+              { type: 'image_url', image_url: { url: image, detail: 'high' } }
+            ]
+          }
+        ],
+        max_tokens: 2000,
+        temperature: 0.3,
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        timeout: 60000,
+      }
+    );
+
+    const content = response.data.choices?.[0]?.message?.content;
+    if (!content) {
+      return res.status(500).json({ error: 'No response from AI' });
+    }
+
+    // Parse JSON from response (strip markdown fences if present)
+    let templateConfig;
+    try {
+      const jsonStr = content.replace(/```json?\s*/g, '').replace(/```\s*/g, '').trim();
+      templateConfig = JSON.parse(jsonStr);
+    } catch {
+      console.error('Failed to parse AI response:', content);
+      return res.status(500).json({ error: 'AI returned invalid JSON. Try again.' });
+    }
+
+    // Sanitize and apply defaults
+    templateConfig.width = 1000;
+    templateConfig.height = 1500;
+    templateConfig.layout = templateConfig.layout || 'text-bar';
+    templateConfig.background_type = templateConfig.background_type || 'images';
+
+    res.json(templateConfig);
+  } catch (error) {
+    console.error('Error cloning template from image:', error.response?.data || error.message);
+    const msg = error.response?.data?.error?.message || error.message || 'Failed to analyze image';
+    res.status(500).json({ error: msg });
+  }
+};
+
 module.exports = {
   getTemplates,
   getTemplate,
@@ -389,5 +532,6 @@ module.exports = {
   getFonts,
   getLayouts,
   generatePreview,
-  generatePin
+  generatePin,
+  cloneFromImage
 };

@@ -18,6 +18,9 @@ router.post('/preview', templateController.generatePreview);
 // Generate actual pin image
 router.post('/generate', templateController.generatePin);
 
+// Clone template from competitor image (AI analysis)
+router.post('/clone-from-image', templateController.cloneFromImage);
+
 // Get all templates
 router.get('/', templateController.getTemplates);
 

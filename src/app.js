@@ -22,6 +22,7 @@ app.use(cors({
 }));
 
 // Body size limit — prevent memory exhaustion
+app.use('/api/templates/clone-from-image', express.json({ limit: '15mb' }));
 app.use(express.json({ limit: '2mb' }));
 
 // Global API rate limit — 200 requests per minute per IP

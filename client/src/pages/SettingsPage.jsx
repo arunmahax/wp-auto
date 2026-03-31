@@ -9,6 +9,7 @@ export default function SettingsPage() {
     content_api_key: '',
     pin_generator_url: '',
     pin_generator_key: '',
+    openai_api_key: '',
   });
   const [meta, setMeta] = useState({});
   const [loading, setLoading] = useState(true);
@@ -23,6 +24,7 @@ export default function SettingsPage() {
           ttapi_api_key_set: data.ttapi_api_key_set,
           content_api_key_set: data.content_api_key_set,
           pin_generator_key_set: data.pin_generator_key_set,
+          openai_api_key_set: data.openai_api_key_set,
           pinboards_jwt_token_set: data.pinboards_jwt_token_set,
         });
         setForm({
@@ -31,6 +33,7 @@ export default function SettingsPage() {
           content_api_key: '',
           pin_generator_url: data.pin_generator_url || '',
           pin_generator_key: '',
+          openai_api_key: '',
           pinboards_jwt_token: '',
         });
       })
@@ -62,12 +65,14 @@ export default function SettingsPage() {
         ttapi_api_key_set: data.ttapi_api_key_set,
         content_api_key_set: data.content_api_key_set,
         pin_generator_key_set: data.pin_generator_key_set,
+        openai_api_key_set: data.openai_api_key_set,
       });
       setForm((prev) => ({
         ...prev,
         ttapi_api_key: '',
         content_api_key: '',
         pin_generator_key: '',
+        openai_api_key: '',
         content_api_url: data.content_api_url || prev.content_api_url,
         pin_generator_url: data.pin_generator_url || prev.pin_generator_url,
       }));
@@ -197,6 +202,23 @@ export default function SettingsPage() {
                 placeholder={meta.pin_generator_key_set ? '••••••••  (leave blank to keep)' : 'Enter API key if required'}
               />
             </div>
+          </div>
+        </section>
+
+        {/* OpenAI (Template Cloner) */}
+        <section className="card">
+          <h2 className="text-base font-semibold mb-4 flex items-center gap-2" style={{ color: 'var(--text-200)' }}>
+            <Key className="w-4 h-4" /> OpenAI (Template Cloner)
+          </h2>
+          <div>
+            <label htmlFor="openai_api_key" className="label flex items-center">
+              API Key {meta.openai_api_key_set && <ConfiguredBadge />}
+            </label>
+            <input id="openai_api_key" name="openai_api_key" type="password" value={form.openai_api_key} onChange={handleChange}
+              className="input"
+              placeholder={meta.openai_api_key_set ? '••••••••  (leave blank to keep)' : 'sk-... (GPT-4 Vision required)'}
+            />
+            <p className="text-xs mt-1" style={{ color: 'var(--text-500)' }}>Used to analyze competitor pin designs and clone their layout</p>
           </div>
         </section>
 

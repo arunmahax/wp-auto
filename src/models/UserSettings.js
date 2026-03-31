@@ -32,6 +32,10 @@ const UserSettings = sequelize.define('UserSettings', {
     type: DataTypes.TEXT,
     allowNull: true,
   },
+  openai_api_key: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+  },
 }, {
   tableName: 'user_settings',
 });

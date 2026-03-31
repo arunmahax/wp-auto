@@ -72,6 +72,14 @@ export const generatePin = async (templateId, pinData, format = 'base64') => {
   return response.data;
 };
 
+// Clone template from competitor image
+export const cloneFromImage = async (imageBase64) => {
+  const response = await client.post('/templates/clone-from-image', {
+    image: imageBase64
+  }, { timeout: 60000 });
+  return response.data;
+};
+
 export default {
   getTemplates,
   getTemplate,
@@ -82,5 +90,6 @@ export default {
   getFonts,
   getLayouts,
   generatePreview,
-  generatePin
+  generatePin,
+  cloneFromImage
 };
