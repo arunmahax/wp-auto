@@ -29,7 +29,8 @@ import {
   ArrowDown,
   Square,
   RectangleVertical,
-  Maximize2
+  Maximize2,
+  Upload
 } from 'lucide-react';
 import * as templateApi from '../api/templates';
 
@@ -370,7 +371,53 @@ function TemplateEditorPage() {
       setSaving(false);
     }
   };
-  
+
+  const handleExportJSON = () => {
+    const exportData = { ...template };
+    delete exportData.id;
+    delete exportData.user_id;
+    delete exportData.created_at;
+    delete exportData.updated_at;
+    delete exportData.createdAt;
+    delete exportData.updatedAt;
+    const json = JSON.stringify(exportData, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${(template.name || 'template').replace(/[^a-zA-Z0-9]/g, '_')}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImportJSON = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        try {
+          const data = JSON.parse(evt.target.result);
+          if (!data || typeof data !== 'object') throw new Error('Invalid');
+          delete data.id;
+          delete data.user_id;
+          delete data.created_at;
+          delete data.updated_at;
+          delete data.createdAt;
+          delete data.updatedAt;
+          setTemplate(prev => ({ ...prev, ...data }));
+        } catch {
+          setError('Invalid JSON file');
+        }
+      };
+      reader.readAsText(file);
+    };
+    input.click();
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -543,6 +590,20 @@ function TemplateEditorPage() {
               {error}
             </span>
           )}
+          <button
+            className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+            onClick={handleImportJSON}
+            title="Import design from JSON"
+          >
+            <Upload className="w-4 h-4" style={{ color: 'var(--text-300)' }} />
+          </button>
+          <button
+            className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+            onClick={handleExportJSON}
+            title="Export design as JSON"
+          >
+            <Download className="w-4 h-4" style={{ color: 'var(--text-300)' }} />
+          </button>
           <button
             className="btn btn-primary flex items-center gap-2"
             onClick={handleSave}
