@@ -27,7 +27,7 @@ async function imagine({ apiKey, prompt }) {
       
       // Only skip retry for truly permanent failures (account/auth issues)
       // Note: "Image denied/filters" are NOT permanent - they often pass on retry
-      const permanentErrors = ['invalid api key', 'unauthorized', 'account banned', 'account suspended'];
+      const permanentErrors = ['invalid api key', 'unauthorized', 'account banned', 'account suspended', 'banned prompt words'];
       const isPermanent = permanentErrors.some(e => err.message?.toLowerCase().includes(e.toLowerCase()));
       
       if (isPermanent) {

@@ -84,6 +84,17 @@ async function recoverFailedRecipes() {
     console.log(`[Scheduler] Auto-recovering ${failedRecipes.length} failed recipes...`);
 
     for (const recipe of failedRecipes) {
+      // Skip recipes that failed due to permanent/content issues (banned words, etc.)
+      const permanentFailure = recipe.error_message && (
+        recipe.error_message.includes('banned prompt words') ||
+        recipe.error_message.includes('invalid api key') ||
+        recipe.error_message.includes('account banned')
+      );
+      if (permanentFailure) {
+        console.log(`[Scheduler] Skipping permanent failure: "${recipe.title}" — ${recipe.error_message?.substring(0, 80)}`);
+        continue;
+      }
+      
       const newRetryCount = (recipe.retry_count || 0) + 1;
       await recipe.update({
         status: 'new',
@@ -276,14 +287,31 @@ async function processNextRecipe(projectId, userId, jobId = null) {
       const template = project.image_prompt_template || defaultTemplate;
       const spyImage = recipe.image1 || '';
       // Sanitize title: remove trailing dashes/punctuation that Midjourney reads as parameters
+      // Also replace Midjourney banned words with safe alternatives (prompt only, not article/pin title)
+      const BANNED_WORD_MAP = {
+        'breast': 'meat', 'breasts': 'meat', 'thigh': 'cut', 'thighs': 'cuts',
+        'naked': 'plain', 'strip': 'piece', 'strips': 'pieces',
+        'bloody': 'rare', 'seductive': 'appealing', 'sensual': 'rich',
+      };
       const safeTitle = recipe.title
         .replace(/[\u2014\u2013]/g, '-')   // normalize em/en dashes
         .replace(/\s*-+\s*$/g, '')          // strip trailing dashes
         .replace(/\s+-\s+/g, ' ')           // lone dashes between words → space
         .replace(/\s+-,/g, ',')             // "-," pattern
         .trim();
+      // Replace banned words in the PROMPT only (title stays intact for article/pin)
+      const safeTitleForPrompt = safeTitle.replace(/\b\w+\b/g, (word) => {
+        const lower = word.toLowerCase();
+        if (BANNED_WORD_MAP[lower]) {
+          const replacement = BANNED_WORD_MAP[lower];
+          return word[0] === word[0].toUpperCase()
+            ? replacement.charAt(0).toUpperCase() + replacement.slice(1)
+            : replacement;
+        }
+        return word;
+      });
       let prompt = template
-        .replace(/\{title\}/gi, safeTitle)
+        .replace(/\{title\}/gi, safeTitleForPrompt)
         .replace(/\{image\}/gi, spyImage)
         .replace(/\u2014/g, '-')
         .replace(/\u2013/g, '-')
