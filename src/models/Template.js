@@ -96,6 +96,11 @@ const Template = sequelize.define('Template', {
     allowNull: true,
     defaultValue: 2,
   },
+  text_bar_stroke_opacity: {
+    type: DataTypes.FLOAT,
+    allowNull: true,
+    defaultValue: 1.0,
+  },
   // Image settings
   image_position: {
     type: DataTypes.STRING(20),

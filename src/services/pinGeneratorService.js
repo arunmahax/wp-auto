@@ -334,10 +334,56 @@ async function generatePin(template, data) {
   
   // Draw text bar
   if (template.text_bar_enabled) {
-    const barHeight = template.text_bar_height || 200;
-    let barY;
+    const minBarHeight = template.text_bar_height || 200;
+    const barPadding = 30; // vertical padding inside bar
     
-    // Calculate bar position - needs to match image layout
+    // --- Measure text stack FIRST to determine dynamic bar height ---
+    const titleMaxWidth = width * ((template.title_max_width || 90) / 100);
+    const hasPretitle = template.pretitle_enabled && template.pretitle_text;
+    const hasSubtitle = template.subtitle_enabled && (subtitle || template.subtitle_text);
+    const pretitleSize = template.pretitle_size || 28;
+    const subtitleSize = template.subtitle_size || 32;
+    const titleLineHeight = template.title_line_height || 1.2;
+    const titleWeight = template.title_weight || 700;
+    const fontFamily = template.title_font || 'Montserrat';
+    const spacing = 12;
+    const fontWeightStr = titleWeight >= 700 ? 'bold' : (titleWeight >= 500 ? '500' : 'normal');
+
+    let pretitleH = 0;
+    if (hasPretitle) {
+      pretitleH = pretitleSize + spacing;
+    }
+
+    // Measure title with auto-shrink
+    let titleFontSize = template.title_size || 72;
+    const minTitleSize = 28;
+    const maxLines = template.title_max_lines || 4;
+    let titleLines;
+    
+    while (titleFontSize >= minTitleSize) {
+      ctx.font = `${fontWeightStr} ${titleFontSize}px "${fontFamily}"`;
+      titleLines = wrapText(ctx, title.toUpperCase(), titleMaxWidth);
+      if (titleLines.length <= maxLines) break;
+      titleFontSize -= 4;
+    }
+    if (titleLines.length > maxLines) {
+      titleLines = titleLines.slice(0, maxLines);
+      titleLines[maxLines - 1] = titleLines[maxLines - 1].replace(/\s+\S*$/, '') + '...';
+    }
+    const titleLineH = titleFontSize * titleLineHeight;
+    const titleBlockH = titleLines.length * titleLineH;
+
+    let subtitleH = 0;
+    if (hasSubtitle) {
+      subtitleH = spacing + subtitleSize;
+    }
+
+    const totalStackH = pretitleH + titleBlockH + subtitleH;
+    // Dynamic bar height: at least template setting, but grows if text needs more
+    const barHeight = Math.max(minBarHeight, totalStackH + barPadding * 2);
+
+    // Calculate bar Y position
+    let barY;
     const availableHeight = height - barHeight;
     const imageGapBar = template.image_gap || 0;
     let topImageHeightForBar;
@@ -360,68 +406,28 @@ async function generatePin(template, data) {
         barY = topImageHeightForBar;
     }
     
-    // Bar background
-    ctx.fillStyle = template.text_bar_color || '#ffffff';
+    // Draw bar background with its own opacity (isolated)
+    ctx.save();
     ctx.globalAlpha = template.text_bar_opacity ?? 1;
+    ctx.fillStyle = template.text_bar_color || '#ffffff';
     ctx.fillRect(0, barY, width, barHeight);
-    ctx.globalAlpha = 1;
+    ctx.restore();
     
-    // Bar stroke (border)
+    // Draw bar stroke with its own opacity (isolated)
     if (template.text_bar_stroke_enabled) {
+      ctx.save();
+      ctx.globalAlpha = template.text_bar_stroke_opacity ?? 1;
       const sw = template.text_bar_stroke_width || 2;
       ctx.strokeStyle = template.text_bar_stroke_color || '#000000';
       ctx.lineWidth = sw;
       ctx.strokeRect(0, barY, width, barHeight);
+      ctx.restore();
     }
     
-    // --- Properly measured text stack (pretitle + title + subtitle) ---
-    const titleMaxWidth = width * ((template.title_max_width || 90) / 100);
-    const hasPretitle = template.pretitle_enabled && template.pretitle_text;
-    const hasSubtitle = template.subtitle_enabled && (subtitle || template.subtitle_text);
-    const pretitleSize = template.pretitle_size || 28;
-    const subtitleSize = template.subtitle_size || 32;
-    const titleLineHeight = template.title_line_height || 1.2;
-    const titleWeight = template.title_weight || 700;
-    const fontFamily = template.title_font || 'Montserrat';
-    const spacing = 12; // gap between pretitle→title and title→subtitle
-
-    // Measure pretitle height
-    let pretitleH = 0;
-    if (hasPretitle) {
-      pretitleH = pretitleSize + spacing;
-    }
-
-    // Measure title height (auto-shrink)
-    let titleFontSize = template.title_size || 72;
-    const minTitleSize = 28;
-    const maxLines = template.title_max_lines || 4;
-    let titleLines;
-    const fontWeightStr = titleWeight >= 700 ? 'bold' : (titleWeight >= 500 ? '500' : 'normal');
-    
-    while (titleFontSize >= minTitleSize) {
-      ctx.font = `${fontWeightStr} ${titleFontSize}px "${fontFamily}"`;
-      titleLines = wrapText(ctx, title.toUpperCase(), titleMaxWidth);
-      if (titleLines.length <= maxLines) break;
-      titleFontSize -= 4;
-    }
-    if (titleLines.length > maxLines) {
-      titleLines = titleLines.slice(0, maxLines);
-      titleLines[maxLines - 1] = titleLines[maxLines - 1].replace(/\s+\S*$/, '') + '...';
-    }
-    const titleLineH = titleFontSize * titleLineHeight;
-    const titleBlockH = titleLines.length * titleLineH;
-
-    // Measure subtitle height
-    let subtitleH = 0;
-    if (hasSubtitle) {
-      subtitleH = spacing + subtitleSize;
-    }
-
-    // Total stack and vertical centering within bar
-    const totalStackH = pretitleH + titleBlockH + subtitleH;
+    // Draw text at full alpha — centered within bar
     let cursorY = barY + (barHeight - totalStackH) / 2;
 
-    // Draw pre-title
+    // Pre-title
     if (hasPretitle) {
       ctx.fillStyle = template.pretitle_color || '#666666';
       ctx.font = `${template.pretitle_weight || 400} ${pretitleSize}px "${template.pretitle_font || 'Montserrat'}"`;
@@ -431,7 +437,7 @@ async function generatePin(template, data) {
       cursorY += pretitleH;
     }
 
-    // Draw title lines
+    // Title lines
     ctx.font = `${fontWeightStr} ${titleFontSize}px "${fontFamily}"`;
     ctx.fillStyle = template.title_color || '#000000';
     ctx.textBaseline = 'top';
@@ -449,7 +455,7 @@ async function generatePin(template, data) {
     });
     cursorY += titleBlockH;
 
-    // Draw subtitle
+    // Subtitle
     if (hasSubtitle) {
       cursorY += spacing;
       const subtitleText = subtitle || template.subtitle_text;

@@ -477,11 +477,23 @@ function TemplateEditorPage() {
       height: layout.textBarHeight,
       background: template.text_bar_color,
       opacity: template.text_bar_opacity,
-      ...(template.text_bar_stroke_enabled ? {
-        borderTop: `${template.text_bar_stroke_width || 2}px solid ${template.text_bar_stroke_color || '#000000'}`,
-        borderBottom: `${template.text_bar_stroke_width || 2}px solid ${template.text_bar_stroke_color || '#000000'}`,
-        boxSizing: 'border-box',
-      } : {}),
+    };
+  };
+
+  const getTextBarStrokeStyle = () => {
+    if (!template.text_bar_enabled || !template.text_bar_stroke_enabled) return { display: 'none' };
+    const layout = getLayoutPositions();
+    return {
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      top: layout.textBarY,
+      height: layout.textBarHeight,
+      borderTop: `${template.text_bar_stroke_width || 2}px solid ${template.text_bar_stroke_color || '#000000'}`,
+      borderBottom: `${template.text_bar_stroke_width || 2}px solid ${template.text_bar_stroke_color || '#000000'}`,
+      boxSizing: 'border-box',
+      opacity: template.text_bar_stroke_opacity ?? 1,
+      pointerEvents: 'none',
     };
   };
   
@@ -1317,6 +1329,20 @@ function TemplateEditorPage() {
                                 className="w-full"
                               />
                             </div>
+                            <div>
+                              <span className="block text-xs mb-1" style={{ color: 'var(--text-400)' }}>
+                                Stroke Opacity: {Math.round((template.text_bar_stroke_opacity ?? 1) * 100)}%
+                              </span>
+                              <input
+                                type="range"
+                                value={template.text_bar_stroke_opacity ?? 1}
+                                onChange={(e) => updateTemplate({ text_bar_stroke_opacity: Number(e.target.value) })}
+                                min={0}
+                                max={1}
+                                step={0.05}
+                                className="w-full"
+                              />
+                            </div>
                           </div>
                         )}
                       </div>
@@ -1717,9 +1743,13 @@ function TemplateEditorPage() {
                 </>
               )}
               
-              {/* Text Bar */}
+              {/* Text Bar Background */}
               {template.text_bar_enabled && (
                 <div style={getTextBarStyle()} />
+              )}
+              {/* Text Bar Stroke */}
+              {template.text_bar_enabled && template.text_bar_stroke_enabled && (
+                <div style={getTextBarStrokeStyle()} />
               )}
               
               {/* Title Container */}

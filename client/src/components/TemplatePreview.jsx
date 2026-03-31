@@ -164,18 +164,24 @@ export default function TemplatePreview({ template: tpl, containerWidth = 200, c
         </>
       )}
       
-      {/* Text Bar */}
+      {/* Text Bar Background (separate for independent opacity) */}
       {tpl.text_bar_enabled && (
         <div style={{
           position: 'absolute', left: 0, right: 0,
           top: barY, height: textBarH,
           background: tpl.text_bar_color || '#ffffff',
           opacity: tpl.text_bar_opacity ?? 1,
-          ...(tpl.text_bar_stroke_enabled ? {
-            borderTop: `${(tpl.text_bar_stroke_width || 2) * scale}px solid ${tpl.text_bar_stroke_color || '#000000'}`,
-            borderBottom: `${(tpl.text_bar_stroke_width || 2) * scale}px solid ${tpl.text_bar_stroke_color || '#000000'}`,
-            boxSizing: 'border-box',
-          } : {}),
+        }} />
+      )}
+      {/* Text Bar Stroke (separate for independent opacity) */}
+      {tpl.text_bar_enabled && tpl.text_bar_stroke_enabled && (
+        <div style={{
+          position: 'absolute', left: 0, right: 0,
+          top: barY, height: textBarH,
+          borderTop: `${(tpl.text_bar_stroke_width || 2) * scale}px solid ${tpl.text_bar_stroke_color || '#000000'}`,
+          borderBottom: `${(tpl.text_bar_stroke_width || 2) * scale}px solid ${tpl.text_bar_stroke_color || '#000000'}`,
+          boxSizing: 'border-box',
+          opacity: tpl.text_bar_stroke_opacity ?? 1,
         }} />
       )}
       
