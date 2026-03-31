@@ -194,6 +194,37 @@ const Template = sequelize.define('Template', {
     allowNull: false,
     defaultValue: 3,
   },
+  // Pre-title settings (text above the main title)
+  pretitle_enabled: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: false,
+  },
+  pretitle_text: {
+    type: DataTypes.STRING(255),
+    allowNull: true,
+    defaultValue: 'THE BEST',
+  },
+  pretitle_font: {
+    type: DataTypes.STRING(100),
+    allowNull: true,
+    defaultValue: 'Montserrat',
+  },
+  pretitle_size: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    defaultValue: 28,
+  },
+  pretitle_weight: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    defaultValue: 400,
+  },
+  pretitle_color: {
+    type: DataTypes.STRING(20),
+    allowNull: true,
+    defaultValue: '#666666',
+  },
   // Subtitle settings
   subtitle_enabled: {
     type: DataTypes.BOOLEAN,

@@ -269,7 +269,7 @@ function TemplatesPage() {
                   className="aspect-[2/3] relative overflow-hidden flex items-center justify-center"
                   style={{ background: template.background_color || 'var(--bg-700)' }}
                 >
-                  <TemplatePreview template={template} containerWidth={240} containerHeight={360} />
+                  <TemplatePreview template={template} containerWidth={280} containerHeight={420} />
                   
                   {/* System badge */}
                   {template.is_system && (
@@ -292,15 +292,32 @@ function TemplatesPage() {
                     <button
                       className="btn btn-sm btn-primary"
                       onClick={() => navigate(`/templates/${template.id}/edit`)}
+                      title="Edit"
                     >
                       <Edit3 className="w-4 h-4" />
                     </button>
                     <button
                       className="btn btn-sm btn-ghost"
                       onClick={() => handleDuplicate(template.id)}
+                      title="Duplicate"
                     >
                       <Copy className="w-4 h-4" />
                     </button>
+                    {!template.is_system && (
+                      <button
+                        className="btn btn-sm"
+                        style={{ background: 'rgba(220,38,38,0.8)', color: 'white' }}
+                        onClick={() => handleDelete(template.id)}
+                        disabled={deleting === template.id}
+                        title="Delete"
+                      >
+                        {deleting === template.id ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="w-4 h-4" />
+                        )}
+                      </button>
+                    )}
                   </div>
                 </div>
 
@@ -380,8 +397,8 @@ function TemplatesPage() {
                   
                   {/* Meta */}
                   <div className="flex items-center gap-2 mt-2 text-xs" style={{ color: 'var(--text-500)' }}>
-                    <Clock className="w-3 h-3" />
-                    <span>{template.createdAt || template.created_at ? new Date(template.createdAt || template.created_at).toLocaleDateString() : ''}</span>
+                    <LayoutIcon className="w-3 h-3" />
+                    <span className="capitalize">{(template.layout || 'text-bar').replace(/-/g, ' ')}</span>
                     <span>•</span>
                     <span>{template.width}×{template.height}</span>
                   </div>

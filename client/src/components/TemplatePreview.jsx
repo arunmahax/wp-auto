@@ -12,6 +12,7 @@ const loadedFonts = new Set();
 function loadFontsForTemplate(tpl) {
   const fonts = new Set();
   if (tpl.title_font) fonts.add(tpl.title_font);
+  if (tpl.pretitle_font) fonts.add(tpl.pretitle_font);
   if (tpl.subtitle_font) fonts.add(tpl.subtitle_font);
   if (tpl.website_font) fonts.add(tpl.website_font);
   if (tpl.badge_font) fonts.add(tpl.badge_font);
@@ -166,10 +167,25 @@ export default function TemplatePreview({ template: tpl, containerWidth = 200, c
         <div style={{
           position: 'absolute', left: 0, right: 0,
           ...(tpl.text_bar_enabled
-            ? { top: barY, height: textBarH, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 8 * scale }
-            : { inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 12 * scale }
+            ? { top: barY, height: textBarH, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 8 * scale }
+            : { inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 12 * scale }
           ),
         }}>
+          {/* Pre-title */}
+          {tpl.pretitle_enabled && tpl.pretitle_text && (
+            <span style={{
+              fontFamily: `"${tpl.pretitle_font || 'Montserrat'}", sans-serif`,
+              fontSize: Math.max(6, (tpl.pretitle_size || 28) * scale),
+              fontWeight: tpl.pretitle_weight || 400,
+              color: tpl.pretitle_color || '#666666',
+              textAlign: 'center',
+              textTransform: 'uppercase',
+              letterSpacing: '0.1em',
+              marginBottom: 2 * scale,
+            }}>
+              {tpl.pretitle_text}
+            </span>
+          )}
           <span style={{
             fontFamily: `"${tpl.title_font || 'Montserrat'}", sans-serif`,
             fontSize: titleFontSize,

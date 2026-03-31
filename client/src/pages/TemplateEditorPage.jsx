@@ -277,6 +277,13 @@ function TemplateEditorPage() {
     subtitle_size: 24,
     subtitle_weight: 400,
     subtitle_color: '#666666',
+    // Pre-title
+    pretitle_enabled: false,
+    pretitle_text: 'THE BEST',
+    pretitle_font: 'Montserrat',
+    pretitle_size: 28,
+    pretitle_weight: 400,
+    pretitle_color: '#666666',
     // Website
     website_enabled: false,
     website_text: 'yoursite.com',
@@ -480,7 +487,7 @@ function TemplateEditorPage() {
   
   const getTitleContainerStyle = () => {
     if (!template.text_bar_enabled) {
-      return { position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' };
+      return { position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '16px' };
     }
     const layout = getLayoutPositions();
     return {
@@ -490,6 +497,7 @@ function TemplateEditorPage() {
       top: layout.textBarY,
       height: layout.textBarHeight,
       display: 'flex',
+      flexDirection: 'column',
       alignItems: 'center',
       justifyContent: 'center',
       padding: '12px',
@@ -1318,9 +1326,90 @@ function TemplateEditorPage() {
               </>
             )}
             
-            {/* EXTRAS TAB (Badge, Subtitle, Website) */}
+            {/* EXTRAS TAB (Pre-Title, Badge, Subtitle, Website) */}
             {activeTab === 'badge' && (
               <>
+                {/* Pre-Title (Header Text) */}
+                <div className="p-3 rounded-lg" style={{ background: 'var(--bg-700)' }}>
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-sm font-medium" style={{ color: 'var(--text-200)' }}>Pre-Title (Header Line)</span>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={template.pretitle_enabled || false}
+                        onChange={(e) => updateTemplate({ pretitle_enabled: e.target.checked })}
+                        className="sr-only peer"
+                      />
+                      <div className="w-9 h-5 bg-gray-600 peer-checked:bg-primary-500 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all"></div>
+                    </label>
+                  </div>
+                  
+                  {template.pretitle_enabled && (
+                    <div className="space-y-3">
+                      <input
+                        type="text"
+                        value={template.pretitle_text || ''}
+                        onChange={(e) => updateTemplate({ pretitle_text: e.target.value })}
+                        className="input w-full"
+                        placeholder="THE BEST"
+                      />
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <span className="text-xs" style={{ color: 'var(--text-500)' }}>Font</span>
+                          <select
+                            value={template.pretitle_font || 'Montserrat'}
+                            onChange={(e) => updateTemplate({ pretitle_font: e.target.value })}
+                            className="input w-full mt-1"
+                          >
+                            {FONT_OPTIONS.map(font => (
+                              <option key={font.value} value={font.value}>{font.label}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <span className="text-xs" style={{ color: 'var(--text-500)' }}>Size</span>
+                          <input
+                            type="number"
+                            value={template.pretitle_size || 28}
+                            onChange={(e) => updateTemplate({ pretitle_size: Number(e.target.value) })}
+                            className="input w-full mt-1"
+                            min={10}
+                            max={80}
+                          />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <span className="text-xs" style={{ color: 'var(--text-500)' }}>Weight</span>
+                          <select
+                            value={template.pretitle_weight || 400}
+                            onChange={(e) => updateTemplate({ pretitle_weight: Number(e.target.value) })}
+                            className="input w-full mt-1"
+                          >
+                            <option value={300}>Light</option>
+                            <option value={400}>Regular</option>
+                            <option value={600}>Semi-Bold</option>
+                            <option value={700}>Bold</option>
+                            <option value={800}>Extra Bold</option>
+                            <option value={900}>Black</option>
+                          </select>
+                        </div>
+                        <div className="flex items-end gap-2">
+                          <div className="flex-1">
+                            <span className="text-xs" style={{ color: 'var(--text-500)' }}>Color</span>
+                          </div>
+                          <input
+                            type="color"
+                            value={template.pretitle_color || '#666666'}
+                            onChange={(e) => updateTemplate({ pretitle_color: e.target.value })}
+                            className="w-8 h-8 rounded cursor-pointer border-0"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 {/* Badge */}
                 <div className="p-3 rounded-lg" style={{ background: 'var(--bg-700)' }}>
                   <div className="flex items-center justify-between mb-3">
@@ -1635,6 +1724,21 @@ function TemplateEditorPage() {
               
               {/* Title Container */}
               <div style={getTitleContainerStyle()}>
+                {/* Pre-title */}
+                {template.pretitle_enabled && template.pretitle_text && (
+                  <div style={{
+                    fontFamily: `"${template.pretitle_font || 'Montserrat'}", sans-serif`,
+                    fontSize: `${(template.pretitle_size || 28) * previewScale}px`,
+                    fontWeight: template.pretitle_weight || 400,
+                    color: template.pretitle_color || '#666666',
+                    textAlign: 'center',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.1em',
+                    marginBottom: `${4 * previewScale}px`,
+                  }}>
+                    {template.pretitle_text}
+                  </div>
+                )}
                 <div style={getTitleStyle()}>
                   {previewTitle}
                 </div>

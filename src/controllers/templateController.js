@@ -436,8 +436,14 @@ Return ONLY valid JSON (no markdown, no explanation) with these fields:
   "title_shadow_color": "rgba(r,g,b,a)",
   "title_shadow_blur": 0-20,
   "title_max_lines": 2-5,
+  "pretitle_enabled": true/false,
+  "pretitle_text": "string - small text ABOVE the main title like THE BEST, EASY WEEKNIGHT, QUICK & EASY",
+  "pretitle_font": "Google Font name",
+  "pretitle_size": 16-48,
+  "pretitle_weight": 400 | 700,
+  "pretitle_color": "#hex",
   "subtitle_enabled": true/false,
-  "subtitle_text": "string like EASY | QUICK | HEALTHY",
+  "subtitle_text": "string - small text BELOW the main title like EASY | QUICK | HEALTHY",
   "subtitle_font": "Google Font name",
   "subtitle_size": 16-48,
   "subtitle_weight": 400 | 700,
@@ -465,7 +471,9 @@ Key rules:
 - If the pin has two food photos stacked (top and bottom) with a text bar in between, use text_bar_position="center" and estimate top_image_height/bottom_image_height
 - If text is directly on the image with no bar, set text_bar_enabled=false
 - If there's a colored overlay on images, set image_overlay_enabled=true with appropriate rgba color
-- Analyze the text styling carefully: size, weight, shadow, outline effects`;
+- Analyze the text styling carefully: size, weight, shadow, outline effects
+- IMPORTANT: Many Pinterest pins have 3 text lines with different styles. The small text ABOVE the main title is the "pretitle" (e.g., "THE BEST", "EASY WEEKNIGHT"). The big text in the middle is the "title". The small text BELOW is the "subtitle". Each can have different font, size, weight, and color. Look carefully for these patterns.
+- If a line of text has a different color (accent color), set that line's color field accordingly`;
 
     const response = await axios.post(
       'https://api.openai.com/v1/chat/completions',

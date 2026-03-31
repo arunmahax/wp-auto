@@ -181,6 +181,9 @@ async function generatePin(template, data) {
   
   // Load required fonts
   await loadGoogleFont(template.title_font || 'Montserrat', '700');
+  if (template.pretitle_enabled && template.pretitle_font) {
+    await loadGoogleFont(template.pretitle_font, String(template.pretitle_weight || 400));
+  }
   if (template.subtitle_enabled && template.subtitle_font) {
     await loadGoogleFont(template.subtitle_font, '400');
   }
@@ -345,15 +348,34 @@ async function generatePin(template, data) {
       ctx.strokeRect(0, barY, width, barHeight);
     }
     
-    // Draw title in text bar
-    const titleY = barY + barHeight / 2;
+    // Calculate vertical center offset for pre-title/title/subtitle stack
+    const hasPretitle = template.pretitle_enabled && template.pretitle_text;
+    const hasSubtitle = template.subtitle_enabled && (subtitle || template.subtitle_text);
+    const pretitleSize = template.pretitle_size || 28;
+    const subtitleSize = template.subtitle_size || 32;
+    
+    // Estimate total stack height to center everything
+    let stackOffset = 0;
+    if (hasPretitle) stackOffset -= (pretitleSize + 10) / 2;
+    if (hasSubtitle) stackOffset -= (subtitleSize + 10) / 2;
+    
+    const titleY = barY + barHeight / 2 + stackOffset;
+
+    // Draw pre-title above the title
+    if (hasPretitle) {
+      ctx.fillStyle = template.pretitle_color || '#666666';
+      ctx.font = `${template.pretitle_weight || 400} ${pretitleSize}px "${template.pretitle_font || 'Montserrat'}"`;
+      ctx.textAlign = template.title_alignment || 'center';
+      ctx.fillText(template.pretitle_text.toUpperCase(), width / 2, titleY - (template.title_size || 72) * 0.7);
+    }
+    
     drawTitle(ctx, title, width / 2, titleY, template, width * 0.9);
     
     // Draw subtitle
-    if (template.subtitle_enabled && (subtitle || template.subtitle_text)) {
+    if (hasSubtitle) {
       const subtitleText = subtitle || template.subtitle_text;
       ctx.fillStyle = template.subtitle_color || '#666666';
-      ctx.font = `${template.subtitle_size || 32}px "${template.subtitle_font || 'Montserrat'}"`;
+      ctx.font = `${template.subtitle_weight || 400} ${subtitleSize}px "${template.subtitle_font || 'Montserrat'}"`;
       ctx.textAlign = 'center';
       ctx.fillText(subtitleText, width / 2, titleY + (template.title_size || 72) * 0.8);
     }
