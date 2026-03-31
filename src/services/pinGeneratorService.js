@@ -240,13 +240,15 @@ async function generatePin(template, data) {
       let topImageHeight, bottomImageHeight;
       
       if (template.top_image_height && template.bottom_image_height) {
-        // Use percentages from template
-        topImageHeight = Math.floor(availableHeight * (template.top_image_height / 100));
-        bottomImageHeight = Math.floor(availableHeight * (template.bottom_image_height / 100));
+        // Use percentages from template — distribute available space proportionally
+        const totalPct = template.top_image_height + template.bottom_image_height;
+        const usableHeight = availableHeight - imageGap;
+        topImageHeight = Math.floor(usableHeight * (template.top_image_height / totalPct));
+        bottomImageHeight = usableHeight - topImageHeight; // give remainder to bottom to avoid gaps
       } else {
         // Default 50/50 split
         topImageHeight = Math.floor((availableHeight - imageGap) / 2);
-        bottomImageHeight = topImageHeight;
+        bottomImageHeight = availableHeight - imageGap - topImageHeight;
       }
       
       // Calculate positions based on text bar position
@@ -337,9 +339,15 @@ async function generatePin(template, data) {
     
     // Calculate bar position - needs to match image layout
     const availableHeight = height - barHeight;
-    const topImageHeight = template.top_image_height 
-      ? Math.floor(availableHeight * (template.top_image_height / 100))
-      : Math.floor(availableHeight / 2);
+    const imageGapBar = template.image_gap || 0;
+    let topImageHeightForBar;
+    if (template.top_image_height && template.bottom_image_height) {
+      const totalPct = template.top_image_height + template.bottom_image_height;
+      const usableHeight = availableHeight - imageGapBar;
+      topImageHeightForBar = Math.floor(usableHeight * (template.top_image_height / totalPct));
+    } else {
+      topImageHeightForBar = Math.floor((availableHeight - imageGapBar) / 2);
+    }
     
     switch (template.text_bar_position) {
       case 'top':
@@ -349,7 +357,7 @@ async function generatePin(template, data) {
         barY = height - barHeight;
         break;
       default: // center - between images
-        barY = topImageHeight;
+        barY = topImageHeightForBar;
     }
     
     // Bar background
