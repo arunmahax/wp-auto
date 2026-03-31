@@ -329,8 +329,14 @@ const generatePreview = async (req, res) => {
     
     const imageBuffer = await generator.generatePin(templateConfig, previewData);
     
+    if (req.query.format === 'base64') {
+      return res.json({ 
+        image: `data:image/webp;base64,${imageBuffer.toString('base64')}` 
+      });
+    }
+    
     res.set({
-      'Content-Type': 'image/png',
+      'Content-Type': 'image/webp',
       'Content-Length': imageBuffer.length,
       'Cache-Control': 'no-cache'
     });

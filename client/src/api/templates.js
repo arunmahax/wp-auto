@@ -80,6 +80,17 @@ export const cloneFromImage = async (imageBase64) => {
   return response.data;
 };
 
+// Test design — generate a pin with custom text/images using current template config
+export const testDesign = async (templateConfig, testData) => {
+  const response = await client.post('/templates/preview?format=base64', {
+    ...templateConfig,
+    preview_title: testData.title,
+    preview_images: testData.images.filter(Boolean),
+    preview_website: testData.website,
+  });
+  return response.data;
+};
+
 export default {
   getTemplates,
   getTemplate,
@@ -91,5 +102,6 @@ export default {
   getLayouts,
   generatePreview,
   generatePin,
-  cloneFromImage
+  cloneFromImage,
+  testDesign
 };

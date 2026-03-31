@@ -230,6 +230,13 @@ function TemplateEditorPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('text'); // text, background, layout, badge
+  const [showTestPanel, setShowTestPanel] = useState(false);
+  const [testTitle, setTestTitle] = useState('Garlic Butter Baked Chicken Breast');
+  const [testImage1, setTestImage1] = useState('https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=800');
+  const [testImage2, setTestImage2] = useState('https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=800');
+  const [testWebsite, setTestWebsite] = useState('www.tastecurious.com');
+  const [testResult, setTestResult] = useState(null);
+  const [testGenerating, setTestGenerating] = useState(false);
   
   // Template state - MATCHING BACKEND MODEL FIELD NAMES
   const [template, setTemplate] = useState({
@@ -423,6 +430,24 @@ function TemplateEditorPage() {
       reader.readAsText(file);
     };
     input.click();
+  };
+
+  const handleTestDesign = async () => {
+    try {
+      setTestGenerating(true);
+      setTestResult(null);
+      const result = await templateApi.testDesign(template, {
+        title: testTitle,
+        images: [testImage1, testImage2].filter(Boolean),
+        website: testWebsite,
+      });
+      setTestResult(result.image);
+    } catch (err) {
+      console.error('Test design error:', err);
+      setError('Failed to generate test: ' + (err.response?.data?.error || err.message));
+    } finally {
+      setTestGenerating(false);
+    }
   };
 
   if (loading) {
@@ -623,6 +648,14 @@ function TemplateEditorPage() {
             title="Export design as JSON"
           >
             <Download className="w-4 h-4" style={{ color: 'var(--text-300)' }} />
+          </button>
+          <button
+            className={`btn flex items-center gap-2 ${showTestPanel ? 'btn-primary' : ''}`}
+            onClick={() => setShowTestPanel(!showTestPanel)}
+            title="Test pin design with custom text and images"
+          >
+            <Eye className="w-4 h-4" />
+            Test Design
           </button>
           <button
             className="btn btn-primary flex items-center gap-2"
@@ -1817,6 +1850,116 @@ function TemplateEditorPage() {
             </p>
           </div>
         </div>
+
+        {/* Right Panel - Test Design */}
+        {showTestPanel && (
+          <div 
+            className="w-96 flex flex-col border-l overflow-y-auto"
+            style={{ borderColor: 'var(--border)', background: 'var(--bg-800)' }}
+          >
+            <div className="p-4 border-b" style={{ borderColor: 'var(--border)' }}>
+              <h3 className="text-sm font-semibold mb-1" style={{ color: 'var(--text-100)' }}>Test Design</h3>
+              <p className="text-xs" style={{ color: 'var(--text-500)' }}>
+                Generate a real pin image with your current settings. No pipeline or API cost.
+              </p>
+            </div>
+            
+            <div className="p-4 space-y-4">
+              {/* Title */}
+              <div>
+                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-300)' }}>Pin Title</label>
+                <textarea
+                  value={testTitle}
+                  onChange={(e) => setTestTitle(e.target.value)}
+                  rows={2}
+                  className="w-full px-3 py-2 rounded-lg text-sm"
+                  style={{ background: 'var(--bg-700)', color: 'var(--text-100)', border: '1px solid var(--border)' }}
+                  placeholder="Enter a recipe title to test..."
+                />
+              </div>
+              
+              {/* Image 1 */}
+              <div>
+                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-300)' }}>Top Image URL</label>
+                <input
+                  type="text"
+                  value={testImage1}
+                  onChange={(e) => setTestImage1(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg text-sm"
+                  style={{ background: 'var(--bg-700)', color: 'var(--text-100)', border: '1px solid var(--border)' }}
+                  placeholder="https://..."
+                />
+              </div>
+              
+              {/* Image 2 */}
+              <div>
+                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-300)' }}>Bottom Image URL</label>
+                <input
+                  type="text"
+                  value={testImage2}
+                  onChange={(e) => setTestImage2(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg text-sm"
+                  style={{ background: 'var(--bg-700)', color: 'var(--text-100)', border: '1px solid var(--border)' }}
+                  placeholder="https://..."
+                />
+              </div>
+              
+              {/* Website */}
+              <div>
+                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-300)' }}>Website</label>
+                <input
+                  type="text"
+                  value={testWebsite}
+                  onChange={(e) => setTestWebsite(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg text-sm"
+                  style={{ background: 'var(--bg-700)', color: 'var(--text-100)', border: '1px solid var(--border)' }}
+                  placeholder="www.example.com"
+                />
+              </div>
+              
+              {/* Generate Button */}
+              <button
+                className="btn btn-primary w-full flex items-center justify-center gap-2"
+                onClick={handleTestDesign}
+                disabled={testGenerating || !testTitle.trim()}
+              >
+                {testGenerating ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <Eye className="w-4 h-4" />
+                    Generate Test Pin
+                  </>
+                )}
+              </button>
+              
+              {/* Result */}
+              {testResult && (
+                <div className="space-y-2">
+                  <p className="text-xs font-medium" style={{ color: 'var(--text-300)' }}>Generated Pin:</p>
+                  <div className="rounded-lg overflow-hidden border" style={{ borderColor: 'var(--border)' }}>
+                    <img 
+                      src={testResult} 
+                      alt="Test pin" 
+                      className="w-full h-auto"
+                    />
+                  </div>
+                  <a
+                    href={testResult}
+                    download="test-pin.webp"
+                    className="btn w-full flex items-center justify-center gap-2 text-sm"
+                  >
+                    <Download className="w-4 h-4" />
+                    Download Test Pin
+                  </a>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
