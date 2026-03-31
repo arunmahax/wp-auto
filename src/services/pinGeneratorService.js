@@ -157,6 +157,7 @@ function drawStyledText(ctx, text, x, y, options = {}) {
     ctx.strokeStyle = outlineColor;
     ctx.lineWidth = outlineWidth;
     ctx.lineJoin = 'round';
+    ctx.miterLimit = 2;
     ctx.strokeText(text, x, y);
     ctx.restore();
   }
@@ -174,6 +175,18 @@ function drawStyledText(ctx, text, x, y, options = {}) {
 async function generatePin(template, data) {
   const { title, images = [], website, subtitle } = data;
   const { width = 1000, height = 1500 } = template;
+  
+  // Debug: log key template values for pin generation
+  console.log('[PinGen] Template values:', JSON.stringify({
+    id: template.id, name: template.name,
+    text_bar_opacity: template.text_bar_opacity,
+    text_bar_color: template.text_bar_color,
+    title_outline_enabled: template.title_outline_enabled,
+    title_outline_width: template.title_outline_width,
+    title_outline_color: template.title_outline_color,
+    text_bar_stroke_enabled: template.text_bar_stroke_enabled,
+    text_bar_stroke_opacity: template.text_bar_stroke_opacity,
+  }));
   
   // Create canvas
   const canvas = createCanvas(width, height);
@@ -447,7 +460,7 @@ async function generatePin(template, data) {
         align: template.title_alignment || 'center',
         outline: template.title_outline_enabled,
         outlineColor: template.title_outline_color || '#ffffff',
-        outlineWidth: template.title_outline_width || 3,
+        outlineWidth: template.title_outline_width ?? 3,
         shadow: template.title_shadow_enabled,
         shadowColor: template.title_shadow_color || 'rgba(0,0,0,0.5)',
         shadowBlur: template.title_shadow_blur || 4,
@@ -597,7 +610,7 @@ function drawTitle(ctx, title, x, y, template, maxWidth) {
       align: template.title_alignment || 'center',
       outline: template.title_outline_enabled,
       outlineColor: template.title_outline_color || '#ffffff',
-      outlineWidth: template.title_outline_width || 3,
+      outlineWidth: template.title_outline_width ?? 3,
       shadow: template.title_shadow_enabled,
       shadowColor: template.title_shadow_color || 'rgba(0,0,0,0.5)',
       shadowBlur: template.title_shadow_blur || 4
