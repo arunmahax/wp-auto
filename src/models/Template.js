@@ -81,6 +81,21 @@ const Template = sequelize.define('Template', {
     allowNull: true,
     defaultValue: 200,
   },
+  text_bar_stroke_enabled: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: false,
+  },
+  text_bar_stroke_color: {
+    type: DataTypes.STRING(20),
+    allowNull: true,
+    defaultValue: '#000000',
+  },
+  text_bar_stroke_width: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    defaultValue: 2,
+  },
   // Image settings
   image_position: {
     type: DataTypes.STRING(20),

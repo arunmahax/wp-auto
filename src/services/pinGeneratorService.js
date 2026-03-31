@@ -337,6 +337,14 @@ async function generatePin(template, data) {
     ctx.fillRect(0, barY, width, barHeight);
     ctx.globalAlpha = 1;
     
+    // Bar stroke (border)
+    if (template.text_bar_stroke_enabled) {
+      const sw = template.text_bar_stroke_width || 2;
+      ctx.strokeStyle = template.text_bar_stroke_color || '#000000';
+      ctx.lineWidth = sw;
+      ctx.strokeRect(0, barY, width, barHeight);
+    }
+    
     // Draw title in text bar
     const titleY = barY + barHeight / 2;
     drawTitle(ctx, title, width / 2, titleY, template, width * 0.9);

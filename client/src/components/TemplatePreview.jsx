@@ -153,6 +153,11 @@ export default function TemplatePreview({ template: tpl, containerWidth = 200, c
           top: barY, height: textBarH,
           background: tpl.text_bar_color || '#ffffff',
           opacity: tpl.text_bar_opacity ?? 1,
+          ...(tpl.text_bar_stroke_enabled ? {
+            borderTop: `${(tpl.text_bar_stroke_width || 2) * scale}px solid ${tpl.text_bar_stroke_color || '#000000'}`,
+            borderBottom: `${(tpl.text_bar_stroke_width || 2) * scale}px solid ${tpl.text_bar_stroke_color || '#000000'}`,
+            boxSizing: 'border-box',
+          } : {}),
         }} />
       )}
       

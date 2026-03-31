@@ -35,41 +35,86 @@ import * as templateApi from '../api/templates';
 
 // Extended Google Fonts for Pinterest
 const FONT_OPTIONS = [
+  // Sans-Serif
   { value: 'Montserrat', label: 'Montserrat', category: 'sans-serif' },
-  { value: 'Playfair Display', label: 'Playfair Display', category: 'serif' },
-  { value: 'Oswald', label: 'Oswald', category: 'sans-serif' },
   { value: 'Roboto', label: 'Roboto', category: 'sans-serif' },
   { value: 'Open Sans', label: 'Open Sans', category: 'sans-serif' },
   { value: 'Lato', label: 'Lato', category: 'sans-serif' },
   { value: 'Poppins', label: 'Poppins', category: 'sans-serif' },
   { value: 'Raleway', label: 'Raleway', category: 'sans-serif' },
-  { value: 'Merriweather', label: 'Merriweather', category: 'serif' },
-  { value: 'Bebas Neue', label: 'Bebas Neue', category: 'display' },
-  { value: 'Anton', label: 'Anton', category: 'display' },
-  { value: 'Pacifico', label: 'Pacifico', category: 'handwriting' },
-  { value: 'Dancing Script', label: 'Dancing Script', category: 'handwriting' },
-  { value: 'Abril Fatface', label: 'Abril Fatface', category: 'display' },
-  { value: 'Lobster', label: 'Lobster', category: 'display' },
-  { value: 'Permanent Marker', label: 'Permanent Marker', category: 'handwriting' },
-  { value: 'Righteous', label: 'Righteous', category: 'display' },
-  { value: 'Archivo Black', label: 'Archivo Black', category: 'sans-serif' },
-  { value: 'Alfa Slab One', label: 'Alfa Slab One', category: 'display' },
-  { value: 'Satisfy', label: 'Satisfy', category: 'handwriting' },
-  { value: 'Russo One', label: 'Russo One', category: 'display' },
-  { value: 'Cinzel', label: 'Cinzel', category: 'serif' },
-  { value: 'Fjalla One', label: 'Fjalla One', category: 'display' },
-  { value: 'Staatliches', label: 'Staatliches', category: 'display' },
-  { value: 'Teko', label: 'Teko', category: 'sans-serif' },
-  { value: 'Barlow Condensed', label: 'Barlow Condensed', category: 'sans-serif' },
-  { value: 'DM Serif Display', label: 'DM Serif Display', category: 'serif' },
+  { value: 'Oswald', label: 'Oswald', category: 'sans-serif' },
   { value: 'Josefin Sans', label: 'Josefin Sans', category: 'sans-serif' },
   { value: 'Quicksand', label: 'Quicksand', category: 'sans-serif' },
-  { value: 'Cormorant Garamond', label: 'Cormorant Garamond', category: 'serif' },
-  { value: 'Source Sans Pro', label: 'Source Sans Pro', category: 'sans-serif' },
   { value: 'Nunito', label: 'Nunito', category: 'sans-serif' },
+  { value: 'Source Sans 3', label: 'Source Sans 3', category: 'sans-serif' },
+  { value: 'Inter', label: 'Inter', category: 'sans-serif' },
+  { value: 'Work Sans', label: 'Work Sans', category: 'sans-serif' },
+  { value: 'Rubik', label: 'Rubik', category: 'sans-serif' },
+  { value: 'Karla', label: 'Karla', category: 'sans-serif' },
+  { value: 'Manrope', label: 'Manrope', category: 'sans-serif' },
+  { value: 'DM Sans', label: 'DM Sans', category: 'sans-serif' },
+  { value: 'Outfit', label: 'Outfit', category: 'sans-serif' },
+  { value: 'Plus Jakarta Sans', label: 'Plus Jakarta Sans', category: 'sans-serif' },
+  { value: 'Space Grotesk', label: 'Space Grotesk', category: 'sans-serif' },
+  { value: 'Barlow', label: 'Barlow', category: 'sans-serif' },
+  { value: 'Barlow Condensed', label: 'Barlow Condensed', category: 'sans-serif' },
+  { value: 'Archivo Black', label: 'Archivo Black', category: 'sans-serif' },
+  { value: 'Teko', label: 'Teko', category: 'sans-serif' },
+  { value: 'Exo 2', label: 'Exo 2', category: 'sans-serif' },
+  { value: 'Cabin', label: 'Cabin', category: 'sans-serif' },
+  { value: 'Titillium Web', label: 'Titillium Web', category: 'sans-serif' },
+  { value: 'Mukta', label: 'Mukta', category: 'sans-serif' },
+  // Serif
+  { value: 'Playfair Display', label: 'Playfair Display', category: 'serif' },
+  { value: 'Merriweather', label: 'Merriweather', category: 'serif' },
+  { value: 'Cinzel', label: 'Cinzel', category: 'serif' },
+  { value: 'DM Serif Display', label: 'DM Serif Display', category: 'serif' },
+  { value: 'Cormorant Garamond', label: 'Cormorant Garamond', category: 'serif' },
+  { value: 'Libre Baskerville', label: 'Libre Baskerville', category: 'serif' },
+  { value: 'Lora', label: 'Lora', category: 'serif' },
+  { value: 'Crimson Text', label: 'Crimson Text', category: 'serif' },
+  { value: 'EB Garamond', label: 'EB Garamond', category: 'serif' },
+  { value: 'Bitter', label: 'Bitter', category: 'serif' },
+  { value: 'Noto Serif', label: 'Noto Serif', category: 'serif' },
+  { value: 'Spectral', label: 'Spectral', category: 'serif' },
+  { value: 'Fraunces', label: 'Fraunces', category: 'serif' },
+  // Display
+  { value: 'Bebas Neue', label: 'Bebas Neue', category: 'display' },
+  { value: 'Anton', label: 'Anton', category: 'display' },
+  { value: 'Abril Fatface', label: 'Abril Fatface', category: 'display' },
+  { value: 'Lobster', label: 'Lobster', category: 'display' },
+  { value: 'Righteous', label: 'Righteous', category: 'display' },
+  { value: 'Alfa Slab One', label: 'Alfa Slab One', category: 'display' },
+  { value: 'Russo One', label: 'Russo One', category: 'display' },
+  { value: 'Fjalla One', label: 'Fjalla One', category: 'display' },
+  { value: 'Staatliches', label: 'Staatliches', category: 'display' },
+  { value: 'Black Ops One', label: 'Black Ops One', category: 'display' },
+  { value: 'Bungee', label: 'Bungee', category: 'display' },
+  { value: 'Fredoka One', label: 'Fredoka One', category: 'display' },
+  { value: 'Passion One', label: 'Passion One', category: 'display' },
+  { value: 'Lilita One', label: 'Lilita One', category: 'display' },
+  { value: 'Dela Gothic One', label: 'Dela Gothic One', category: 'display' },
+  { value: 'Bree Serif', label: 'Bree Serif', category: 'display' },
+  { value: 'Changa One', label: 'Changa One', category: 'display' },
+  { value: 'Crete Round', label: 'Crete Round', category: 'display' },
+  { value: 'Patua One', label: 'Patua One', category: 'display' },
+  { value: 'Secular One', label: 'Secular One', category: 'display' },
+  // Handwriting / Script
+  { value: 'Pacifico', label: 'Pacifico', category: 'handwriting' },
+  { value: 'Dancing Script', label: 'Dancing Script', category: 'handwriting' },
+  { value: 'Permanent Marker', label: 'Permanent Marker', category: 'handwriting' },
+  { value: 'Satisfy', label: 'Satisfy', category: 'handwriting' },
   { value: 'Caveat', label: 'Caveat', category: 'handwriting' },
   { value: 'Shadows Into Light', label: 'Shadows Into Light', category: 'handwriting' },
   { value: 'Great Vibes', label: 'Great Vibes', category: 'handwriting' },
+  { value: 'Sacramento', label: 'Sacramento', category: 'handwriting' },
+  { value: 'Kalam', label: 'Kalam', category: 'handwriting' },
+  { value: 'Indie Flower', label: 'Indie Flower', category: 'handwriting' },
+  { value: 'Amatic SC', label: 'Amatic SC', category: 'handwriting' },
+  { value: 'Architects Daughter', label: 'Architects Daughter', category: 'handwriting' },
+  { value: 'Courgette', label: 'Courgette', category: 'handwriting' },
+  { value: 'Gloria Hallelujah', label: 'Gloria Hallelujah', category: 'handwriting' },
+  { value: 'Homemade Apple', label: 'Homemade Apple', category: 'handwriting' },
 ];
 
 // Preset pin sizes
@@ -378,6 +423,11 @@ function TemplateEditorPage() {
       height: layout.textBarHeight,
       background: template.text_bar_color,
       opacity: template.text_bar_opacity,
+      ...(template.text_bar_stroke_enabled ? {
+        borderTop: `${template.text_bar_stroke_width || 2}px solid ${template.text_bar_stroke_color || '#000000'}`,
+        borderBottom: `${template.text_bar_stroke_width || 2}px solid ${template.text_bar_stroke_color || '#000000'}`,
+        boxSizing: 'border-box',
+      } : {}),
     };
   };
   
@@ -1157,6 +1207,49 @@ function TemplateEditorPage() {
                           step={0.05}
                           className="w-full"
                         />
+                      </div>
+                      
+                      {/* Bar Stroke */}
+                      <div className="pt-2 border-t border-white/10">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-xs" style={{ color: 'var(--text-400)' }}>Stroke (Border)</span>
+                          <label className="relative inline-flex items-center cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={template.text_bar_stroke_enabled || false}
+                              onChange={(e) => updateTemplate({ text_bar_stroke_enabled: e.target.checked })}
+                              className="sr-only peer"
+                            />
+                            <div className="w-8 h-4 bg-gray-600 peer-checked:bg-primary-500 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all"></div>
+                          </label>
+                        </div>
+                        {template.text_bar_stroke_enabled && (
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs" style={{ color: 'var(--text-400)' }}>Color</span>
+                              <input
+                                type="color"
+                                value={template.text_bar_stroke_color || '#000000'}
+                                onChange={(e) => updateTemplate({ text_bar_stroke_color: e.target.value })}
+                                className="w-8 h-8 rounded cursor-pointer ml-auto border-0"
+                              />
+                            </div>
+                            <div>
+                              <span className="block text-xs mb-1" style={{ color: 'var(--text-400)' }}>
+                                Width: {template.text_bar_stroke_width || 2}px
+                              </span>
+                              <input
+                                type="range"
+                                value={template.text_bar_stroke_width || 2}
+                                onChange={(e) => updateTemplate({ text_bar_stroke_width: Number(e.target.value) })}
+                                min={1}
+                                max={10}
+                                step={1}
+                                className="w-full"
+                              />
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
