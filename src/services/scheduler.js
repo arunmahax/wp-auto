@@ -315,6 +315,7 @@ async function processNextRecipe(projectId, userId, jobId = null) {
         .replace(/\{image\}/gi, spyImage)
         .replace(/\u2014/g, '-')
         .replace(/\u2013/g, '-')
+        .replace(/[\r\n]+/g, ' ')
         .replace(/\s{2,}/g, ' ')
         .trim();
       console.log(`[Scheduler] Step 1: TTAPI imagine — ${recipe.title}`);

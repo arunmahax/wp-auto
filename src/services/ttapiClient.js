@@ -2,7 +2,7 @@ const axios = require('axios');
 
 const BASE_URL = 'https://api.ttapi.io';
 const POLL_INTERVAL = 10000;
-const POLL_TIMEOUT = 300000; // 5 min — Midjourney can be slow
+const POLL_TIMEOUT = 660000; // 11 min — relax mode can take up to 10 min
 const MAX_RETRIES = 5;        // More retries for resilience
 const RETRY_DELAY = 60000;    // 1 minute between retries (faster recovery)
 
@@ -62,7 +62,7 @@ async function imagineOnce({ apiKey, prompt, attempt = 1 }) {
   // Submit imagine request
   let submitRes;
   try {
-    const res = await client.post('/midjourney/v1/imagine', { prompt });
+    const res = await client.post('/midjourney/v1/imagine', { prompt, mode: 'relax' });
     submitRes = res.data;
   } catch (err) {
     const detail = err.response?.data ? JSON.stringify(err.response.data) : err.message;
