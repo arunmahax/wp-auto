@@ -14,7 +14,7 @@ router.get('/', async (req, res, next) => {
     // Get all user's projects
     const projects = await Project.findAll({
       where: { user_id: userId },
-      attributes: ['id', 'name'],
+      attributes: ['id', 'name', 'trigger_enabled', 'trigger_interval', 'last_trigger_at'],
     });
     const projectIds = projects.map((p) => p.id);
     const projectMap = Object.fromEntries(projects.map((p) => [p.id, p.name]));
@@ -125,7 +125,7 @@ router.get('/', async (req, res, next) => {
       }
     }
 
-    res.json({ stats, jobs: jobList, projects: projects.map(p => ({ id: p.id, name: p.name })) });
+    res.json({ stats, jobs: jobList, projects: projects.map(p => ({ id: p.id, name: p.name, trigger_enabled: p.trigger_enabled, trigger_interval: p.trigger_interval, last_trigger_at: p.last_trigger_at })) });
   } catch (err) {
     next(err);
   }

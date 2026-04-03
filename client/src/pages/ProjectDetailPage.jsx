@@ -723,6 +723,12 @@ function KanbanCard({ recipe, onClick, onRun, isRunning }) {
         </div>
       )}
       <div className="recipe-card-title">{recipe.title}</div>
+      {recipe.status === 'completed' && recipe.updatedAt && (
+        <div className="text-xs mt-1 flex items-center gap-1" style={{ color: 'var(--text-500)' }}>
+          <Calendar className="w-3 h-3" />
+          {new Date(recipe.updatedAt).toLocaleDateString()} {new Date(recipe.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+        </div>
+      )}
       {recipe.status === 'processing' && recipe.pipeline_step && (
         <div className="recipe-card-status flex items-center gap-1">
           <Loader2 className="w-3 h-3 animate-spin" style={{ color: 'var(--primary-400)' }} />
@@ -1385,7 +1391,7 @@ function ActivityTab({ jobs, projectId, expandedJob, setExpandedJob, handleRetry
             </div>
             <div className="flex items-center gap-3">
               <span className="text-xs font-medium" style={{ color: 'var(--text-500)' }}>
-                {new Date(job.createdAt).toLocaleString()}
+                {new Date(job.createdAt).toLocaleDateString()} {new Date(job.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </span>
               {job.status === 'failed' && (
                 <button

@@ -17,7 +17,8 @@ import {
   ExternalLink,
   Loader2,
   Inbox,
-  Activity
+  Activity,
+  Timer
 } from 'lucide-react';
 
 const TABS = [
@@ -140,7 +141,7 @@ function JobRow({ job, onRetry, onExpand, expanded, retrying }) {
 
         {/* Time */}
         <div className="text-xs whitespace-nowrap" style={{ color: 'var(--text-500)' }}>
-          <TimeAgo date={job.createdAt} />
+          {new Date(job.createdAt).toLocaleDateString()} {new Date(job.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
         </div>
 
         {/* Expand arrow */}
@@ -339,6 +340,9 @@ export default function DashboardPage() {
             )}
           </div>
 
+          {/* Upcoming runs */}
+          <UpcomingRuns projects={data?.projects || []} />
+
           {/* Recent activity */}
           <div>
             <h2 className="text-sm font-semibold uppercase tracking-wider mb-4" style={{ color: 'var(--text-400)' }}>
@@ -531,6 +535,81 @@ function EmptyState({ message, icon: Icon = Inbox, action }) {
       <p className="text-sm" style={{ color: 'var(--text-400)' }}>
         {message} {action}
       </p>
+    </div>
+  );
+}
+
+const INTERVAL_HOURS = { '3h': 3, '5h': 5, '6h': 6, '8h': 8, '12h': 12 };
+
+function UpcomingRuns({ projects }) {
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setTick((n) => n + 1), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  const scheduled = (projects || [])
+    .filter((p) => p.trigger_enabled && p.trigger_interval && p.trigger_interval !== 'disabled' && p.last_trigger_at)
+    .map((p) => {
+      const hours = INTERVAL_HOURS[p.trigger_interval];
+      if (!hours) return null;
+      const nextRun = new Date(p.last_trigger_at).getTime() + hours * 3600000;
+      return { ...p, nextRun };
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.nextRun - b.nextRun);
+
+  if (scheduled.length === 0) return null;
+
+  return (
+    <div className="mb-8">
+      <h2 className="text-sm font-semibold uppercase tracking-wider mb-4" style={{ color: 'var(--text-400)' }}>
+        Upcoming Runs
+      </h2>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {scheduled.map((p) => {
+          const remaining = p.nextRun - Date.now();
+          const isDue = remaining <= 0;
+          const h = Math.max(0, Math.floor(remaining / 3600000));
+          const m = Math.max(0, Math.floor((remaining % 3600000) / 60000));
+          const s = Math.max(0, Math.floor((remaining % 60000) / 1000));
+          const nextDate = new Date(p.nextRun);
+
+          return (
+            <Link
+              key={p.id}
+              to={`/projects/${p.id}`}
+              className="card card-hover p-4 flex items-center gap-3"
+            >
+              <div
+                className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
+                style={{ background: isDue ? 'rgba(99, 102, 241, 0.2)' : 'var(--bg-700)' }}
+              >
+                <Timer className="w-5 h-5" style={{ color: isDue ? 'var(--primary-400)' : 'var(--text-400)' }} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-semibold truncate" style={{ color: 'var(--text-100)' }}>
+                  {p.name}
+                </div>
+                <div className="text-xs" style={{ color: 'var(--text-500)' }}>
+                  Every {INTERVAL_HOURS[p.trigger_interval]}h
+                  {' · '}
+                  {nextDate.toLocaleDateString()} {nextDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </div>
+              </div>
+              <div className="text-right shrink-0">
+                {isDue ? (
+                  <span className="text-gradient font-bold text-sm">Due now</span>
+                ) : (
+                  <span className="font-mono text-sm font-bold" style={{ color: 'var(--primary-400)' }}>
+                    {String(h).padStart(2, '0')}:{String(m).padStart(2, '0')}:{String(s).padStart(2, '0')}
+                  </span>
+                )}
+              </div>
+            </Link>
+          );
+        })}
+      </div>
     </div>
   );
 }
