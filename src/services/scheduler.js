@@ -27,8 +27,8 @@ const activeJobs = new Map();
 // Failed recipe recovery job
 let failedRecoveryJob = null;
 
-// Max auto-retries for failed recipes
-const MAX_AUTO_RETRIES = 3;
+// Max auto-retries for failed recipes (covers ~10 hours of retrying)
+const MAX_AUTO_RETRIES = 10;
 
 const INTERVAL_MAP = {
   '3h': '0 */3 * * *',
@@ -69,13 +69,15 @@ async function recoverFailedRecipes() {
     // Find failed recipes that:
     // 1. Haven't exceeded max retries
     // 2. Failed in the last 24 hours (avoid retrying ancient failures)
+    // 3. Failed at least 1 hour ago (give TTAPI/Midjourney time to recover)
     const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
     
     const failedRecipes = await Recipe.findAll({
       where: {
         status: 'failed',
         retry_count: { [Op.lt]: MAX_AUTO_RETRIES },
-        updatedAt: { [Op.gte]: twentyFourHoursAgo },
+        updatedAt: { [Op.gte]: twentyFourHoursAgo, [Op.lte]: oneHourAgo },
       },
     });
 
