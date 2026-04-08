@@ -267,14 +267,15 @@ export default function ProjectDetailPage() {
   };
 
   // Spy handlers
-  const fetchSpyData = async () => {
+  const fetchSpyData = async (feedIndices) => {
     setSpyLoading(true);
     setError('');
     setSpyItems([]);
     setSelectedSpyItems(new Set());
     setSpyStats(null);
     try {
-      const { data } = await client.get(`/projects/${id}/spy/fetch`);
+      const params = feedIndices && feedIndices !== 'all' ? `?feeds=${feedIndices}` : '';
+      const { data } = await client.get(`/projects/${id}/spy/fetch${params}`);
       setSpyItems(data.items || []);
       setSpyStats(data.stats || null);
       if (data.items?.length === 0 && data.stats) {
@@ -1049,8 +1050,36 @@ function RecipeModal({ recipe, onClose, onRun, runningRecipeId }) {
 /* ── Spy Tab ── */
 function SpyTab({ spyItems, spyLoading, selectedSpyItems, setSelectedSpyItems, toggleSpyItem, fetchSpyData, addSpyToQueue, addingToQueue, project }) {
   const hasFeeds = project?.rss_feeds?.length > 0;
+  const feeds = project?.rss_feeds || [];
+  const [selectedFeeds, setSelectedFeeds] = useState(new Set(feeds.map((_, i) => i))); // all selected by default
   const [timeFilter, setTimeFilter] = useState('all');
   const [sortBy, setSortBy] = useState('newest');
+
+  // Keep selectedFeeds in sync when project feeds change
+  useEffect(() => {
+    setSelectedFeeds(new Set(feeds.map((_, i) => i)));
+  }, [feeds.length]);
+
+  const toggleFeed = (idx) => {
+    setSelectedFeeds(prev => {
+      const next = new Set(prev);
+      if (next.has(idx)) next.delete(idx);
+      else next.add(idx);
+      return next;
+    });
+  };
+
+  const handleFetch = () => {
+    if (selectedFeeds.size === feeds.length) {
+      fetchSpyData('all');
+    } else {
+      fetchSpyData([...selectedFeeds].sort((a, b) => a - b).join(','));
+    }
+  };
+
+  const getFeedLabel = (url) => {
+    try { return new URL(url).hostname.replace('www.', ''); } catch { return url; }
+  };
 
   // Filter and sort items, preserving original indices for selection
   const filteredItems = useMemo(() => {
@@ -1119,8 +1148,8 @@ function SpyTab({ spyItems, spyLoading, selectedSpyItems, setSelectedSpyItems, t
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <button
-            onClick={fetchSpyData}
-            disabled={spyLoading || !hasFeeds}
+            onClick={handleFetch}
+            disabled={spyLoading || !hasFeeds || selectedFeeds.size === 0}
             className="btn-primary flex items-center gap-2"
           >
             {spyLoading ? (
@@ -1160,6 +1189,43 @@ function SpyTab({ spyItems, spyLoading, selectedSpyItems, setSelectedSpyItems, t
           </button>
         )}
       </div>
+
+      {/* Feed selector */}
+      {feeds.length > 1 && (
+        <div className="flex flex-wrap items-center gap-2 mb-4">
+          <Rss className="w-4 h-4" style={{ color: 'var(--text-500)' }} />
+          <span className="text-xs font-medium uppercase tracking-wider mr-1" style={{ color: 'var(--text-500)' }}>Feeds</span>
+          <button
+            onClick={() => {
+              if (selectedFeeds.size === feeds.length) setSelectedFeeds(new Set());
+              else setSelectedFeeds(new Set(feeds.map((_, i) => i)));
+            }}
+            className="px-2.5 py-1 text-xs font-semibold rounded-lg cursor-pointer transition-all"
+            style={{
+              background: selectedFeeds.size === feeds.length ? 'linear-gradient(135deg, var(--primary-500), var(--accent-500))' : 'var(--bg-700)',
+              color: selectedFeeds.size === feeds.length ? 'white' : 'var(--text-300)',
+              border: 'none'
+            }}
+          >
+            All
+          </button>
+          {feeds.map((url, i) => (
+            <button
+              key={i}
+              onClick={() => toggleFeed(i)}
+              className="px-2.5 py-1 text-xs font-semibold rounded-lg cursor-pointer transition-all"
+              style={{
+                background: selectedFeeds.has(i) ? 'rgba(5, 150, 105, 0.25)' : 'var(--bg-700)',
+                color: selectedFeeds.has(i) ? 'var(--success-400)' : 'var(--text-300)',
+                border: 'none'
+              }}
+              title={url}
+            >
+              {getFeedLabel(url)}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Filter & Sort bar */}
       {spyItems.length > 0 && (

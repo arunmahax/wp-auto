@@ -196,8 +196,15 @@ router.get('/:id/spy/fetch', async (req, res, next) => {
       return res.status(404).json({ error: 'Project not found' });
     }
 
-    const rssFeeds = project.rss_feeds || [];
-    console.log(`[Spy] Project ${req.params.id} has ${rssFeeds.length} RSS feeds configured`);
+    const allFeeds = project.rss_feeds || [];
+    // Allow filtering by specific feeds via query param
+    const feedsParam = req.query.feeds; // comma-separated indices or 'all'
+    let rssFeeds = allFeeds;
+    if (feedsParam && feedsParam !== 'all') {
+      const indices = feedsParam.split(',').map(Number).filter(i => !isNaN(i) && i >= 0 && i < allFeeds.length);
+      if (indices.length > 0) rssFeeds = indices.map(i => allFeeds[i]);
+    }
+    console.log(`[Spy] Project ${req.params.id}: fetching ${rssFeeds.length} of ${allFeeds.length} RSS feeds`);
     
     if (rssFeeds.length === 0) {
       return res.json({ 
