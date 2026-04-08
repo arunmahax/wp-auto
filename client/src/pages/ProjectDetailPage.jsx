@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import client from '../api/client';
 import JobStatusBadge from '../components/JobStatusBadge';
@@ -30,7 +30,8 @@ import {
   Inbox,
   Rss,
   Plus,
-  Check
+  Check,
+  ArrowUpDown
 } from 'lucide-react';
 
 const PIPELINE_STEP_LABELS = {
@@ -612,8 +613,8 @@ export default function ProjectDetailPage() {
               spyItems={spyItems}
               spyLoading={spyLoading}
               selectedSpyItems={selectedSpyItems}
+              setSelectedSpyItems={setSelectedSpyItems}
               toggleSpyItem={toggleSpyItem}
-              selectAllSpyItems={selectAllSpyItems}
               fetchSpyData={fetchSpyData}
               addSpyToQueue={addSpyToQueue}
               addingToQueue={addingToQueue}
@@ -1046,13 +1047,76 @@ function RecipeModal({ recipe, onClose, onRun, runningRecipeId }) {
 }
 
 /* ── Spy Tab ── */
-function SpyTab({ spyItems, spyLoading, selectedSpyItems, toggleSpyItem, selectAllSpyItems, fetchSpyData, addSpyToQueue, addingToQueue, project }) {
+function SpyTab({ spyItems, spyLoading, selectedSpyItems, setSelectedSpyItems, toggleSpyItem, fetchSpyData, addSpyToQueue, addingToQueue, project }) {
   const hasFeeds = project?.rss_feeds?.length > 0;
-  
+  const [timeFilter, setTimeFilter] = useState('all');
+  const [sortBy, setSortBy] = useState('newest');
+
+  // Filter and sort items, preserving original indices for selection
+  const filteredItems = useMemo(() => {
+    let items = spyItems.map((item, idx) => ({ ...item, _origIdx: idx }));
+
+    // Time filter
+    if (timeFilter !== 'all') {
+      const cutoff = new Date();
+      if (timeFilter === '24h') cutoff.setHours(cutoff.getHours() - 24);
+      else if (timeFilter === 'yesterday') {
+        cutoff.setDate(cutoff.getDate() - 1);
+        cutoff.setHours(0, 0, 0, 0);
+      }
+      else if (timeFilter === '7d') cutoff.setDate(cutoff.getDate() - 7);
+      else if (timeFilter === '30d') cutoff.setDate(cutoff.getDate() - 30);
+      items = items.filter(item => item.pubDate && new Date(item.pubDate) >= cutoff);
+    }
+
+    // Sort
+    if (sortBy === 'newest') items.sort((a, b) => new Date(b.pubDate || 0) - new Date(a.pubDate || 0));
+    else if (sortBy === 'oldest') items.sort((a, b) => new Date(a.pubDate || 0) - new Date(b.pubDate || 0));
+    else if (sortBy === 'az') items.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
+
+    return items;
+  }, [spyItems, timeFilter, sortBy]);
+
+  // Select/deselect all visible (filtered) items
+  const handleSelectAll = () => {
+    const filteredOrigIdxs = filteredItems.map(i => i._origIdx);
+    const allSelected = filteredOrigIdxs.every(idx => selectedSpyItems.has(idx));
+    if (allSelected) {
+      setSelectedSpyItems(prev => {
+        const next = new Set(prev);
+        filteredOrigIdxs.forEach(idx => next.delete(idx));
+        return next;
+      });
+    } else {
+      setSelectedSpyItems(prev => {
+        const next = new Set(prev);
+        filteredOrigIdxs.forEach(idx => next.add(idx));
+        return next;
+      });
+    }
+  };
+
+  // Count how many filtered items are selected
+  const filteredSelectedCount = filteredItems.filter(i => selectedSpyItems.has(i._origIdx)).length;
+
+  const TIME_FILTERS = [
+    { key: 'all', label: 'All' },
+    { key: '24h', label: 'Last 24h' },
+    { key: 'yesterday', label: 'Yesterday' },
+    { key: '7d', label: 'Last 7 Days' },
+    { key: '30d', label: 'Last 30 Days' },
+  ];
+
+  const SORT_OPTIONS = [
+    { key: 'newest', label: 'Newest' },
+    { key: 'oldest', label: 'Oldest' },
+    { key: 'az', label: 'A → Z' },
+  ];
+
   return (
     <div>
       {/* Header */}
-      <div className="flex items-center justify-between mb-5">
+      <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <button
             onClick={fetchSpyData}
@@ -1066,16 +1130,17 @@ function SpyTab({ spyItems, spyLoading, selectedSpyItems, toggleSpyItem, selectA
             )}
             {spyLoading ? 'Fetching...' : 'Fetch Latest'}
           </button>
-          {spyItems.length > 0 && (
+          {filteredItems.length > 0 && (
             <>
               <button
-                onClick={selectAllSpyItems}
+                onClick={handleSelectAll}
                 className="btn-secondary text-sm"
               >
-                {selectedSpyItems.size === spyItems.length ? 'Deselect All' : 'Select All'}
+                {filteredSelectedCount === filteredItems.length ? 'Deselect All' : 'Select All'}
               </button>
               <span className="text-xs" style={{ color: 'var(--text-400)' }}>
                 {selectedSpyItems.size} of {spyItems.length} selected
+                {timeFilter !== 'all' && ` (${filteredItems.length} shown)`}
               </span>
             </>
           )}
@@ -1095,6 +1160,53 @@ function SpyTab({ spyItems, spyLoading, selectedSpyItems, toggleSpyItem, selectA
           </button>
         )}
       </div>
+
+      {/* Filter & Sort bar */}
+      {spyItems.length > 0 && (
+        <div className="flex flex-wrap items-center gap-4 mb-5 pb-4" style={{ borderBottom: '1px solid var(--bg-700)' }}>
+          {/* Time filter */}
+          <div className="flex items-center gap-2">
+            <Calendar className="w-4 h-4" style={{ color: 'var(--text-500)' }} />
+            <div className="flex gap-1">
+              {TIME_FILTERS.map(f => (
+                <button
+                  key={f.key}
+                  onClick={() => setTimeFilter(f.key)}
+                  className="px-2.5 py-1 text-xs font-semibold rounded-lg cursor-pointer transition-all"
+                  style={{
+                    background: timeFilter === f.key ? 'linear-gradient(135deg, var(--primary-500), var(--accent-500))' : 'var(--bg-700)',
+                    color: timeFilter === f.key ? 'white' : 'var(--text-300)',
+                    border: 'none'
+                  }}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Sort */}
+          <div className="flex items-center gap-2">
+            <ArrowUpDown className="w-4 h-4" style={{ color: 'var(--text-500)' }} />
+            <div className="flex gap-1">
+              {SORT_OPTIONS.map(s => (
+                <button
+                  key={s.key}
+                  onClick={() => setSortBy(s.key)}
+                  className="px-2.5 py-1 text-xs font-semibold rounded-lg cursor-pointer transition-all"
+                  style={{
+                    background: sortBy === s.key ? 'linear-gradient(135deg, var(--primary-500), var(--accent-500))' : 'var(--bg-700)',
+                    color: sortBy === s.key ? 'white' : 'var(--text-300)',
+                    border: 'none'
+                  }}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* No feeds configured */}
       {!hasFeeds && (
@@ -1126,15 +1238,26 @@ function SpyTab({ spyItems, spyLoading, selectedSpyItems, toggleSpyItem, selectA
         </div>
       )}
 
+      {/* Empty filtered state */}
+      {!spyLoading && spyItems.length > 0 && filteredItems.length === 0 && (
+        <div className="text-center py-12">
+          <ListFilter className="w-12 h-12 mx-auto mb-3" style={{ color: 'var(--text-500)' }} />
+          <p className="text-sm" style={{ color: 'var(--text-400)' }}>No recipes match this filter</p>
+          <p className="text-xs mt-1" style={{ color: 'var(--text-500)' }}>
+            Try a wider time range — {spyItems.length} recipes available with "All"
+          </p>
+        </div>
+      )}
+
       {/* Results grid */}
-      {!spyLoading && spyItems.length > 0 && (
+      {!spyLoading && filteredItems.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {spyItems.map((item, idx) => {
-            const isSelected = selectedSpyItems.has(idx);
+          {filteredItems.map((item) => {
+            const isSelected = selectedSpyItems.has(item._origIdx);
             return (
               <div
-                key={idx}
-                onClick={() => toggleSpyItem(idx)}
+                key={item._origIdx}
+                onClick={() => toggleSpyItem(item._origIdx)}
                 className="spy-card relative rounded-xl overflow-hidden cursor-pointer transition-all"
                 style={{
                   background: 'var(--bg-800)',
