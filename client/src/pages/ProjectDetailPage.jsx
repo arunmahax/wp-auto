@@ -319,7 +319,7 @@ export default function ProjectDetailPage() {
     try {
       const itemsToAdd = [...selectedSpyItems].map((i) => spyItems[i]);
       const { data } = await client.post(`/projects/${id}/spy/add`, { items: itemsToAdd });
-      setError(`Added ${data.added} recipes to queue`);
+      setError(data.message || `Added ${data.created?.length || 0} recipes to queue`);
       // Remove added items from spy list
       setSpyItems((prev) => prev.filter((_, i) => !selectedSpyItems.has(i)));
       setSelectedSpyItems(new Set());
