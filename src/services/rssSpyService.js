@@ -83,7 +83,7 @@ function matchesKeywords(title, keywords) {
 }
 
 /**
- * Fetch and parse a single RSS feed
+ * Fetch and parse a single RSS feed (one page)
  */
 async function fetchFeed(feedUrl) {
   try {
@@ -107,6 +107,62 @@ async function fetchFeed(feedUrl) {
   }
 }
 
+const MAX_PAGES = 50; // Safety cap
+
+/**
+ * Fetch all pages of a single RSS feed (WordPress paged feeds)
+ * WordPress supports /feed/?paged=2, /feed/?paged=3, etc.
+ */
+async function fetchFeedAllPages(feedUrl) {
+  const allItems = [];
+  let page = 1;
+  const baseUrl = feedUrl.replace(/[?&]paged=\d+/, '').replace(/\?$/, '');
+  const domain = getDomain(feedUrl);
+
+  while (page <= MAX_PAGES) {
+    const pagedUrl = page === 1 ? baseUrl : `${baseUrl}${baseUrl.includes('?') ? '&' : '?'}paged=${page}`;
+    
+    try {
+      const feed = await parser.parseURL(pagedUrl);
+      
+      if (!feed.items || feed.items.length === 0) {
+        break; // No more items, stop paginating
+      }
+
+      const items = feed.items.map(item => ({
+        title: item.title?.trim() || 'Untitled',
+        link: item.link,
+        image: extractImage(item),
+        pubDate: item.pubDate ? new Date(item.pubDate) : new Date(),
+        categories: item.categories || [],
+        domain: domain || getDomain(item.link) || 'unknown',
+        feedTitle: feed.title,
+      })).filter(item => item.title);
+
+      allItems.push(...items);
+
+      console.log(`[RSS Spy] Page ${page} of ${baseUrl}: ${items.length} items (total: ${allItems.length})`);
+
+      // If this page had fewer items than expected, it's probably the last one
+      if (feed.items.length < 5) break;
+      
+      page++;
+    } catch (error) {
+      // Page doesn't exist (404) or other error — stop paginating
+      if (page === 1) {
+        console.error(`[RSS Spy] Failed to fetch ${feedUrl}:`, error.message);
+        return { success: false, items: [], feedUrl, error: error.message };
+      }
+      // Beyond page 1, just stop — we already have items
+      console.log(`[RSS Spy] Stopped at page ${page} of ${baseUrl}: ${error.message}`);
+      break;
+    }
+  }
+
+  console.log(`[RSS Spy] Fetched ${allItems.length} total items from ${baseUrl} (${page} pages)`);
+  return { success: true, items: allItems, feedUrl: baseUrl };
+}
+
 /**
  * Fetch all feeds for a project and return deduplicated items
  * @param {Array<string>} feedUrls - List of RSS feed URLs
@@ -124,8 +180,8 @@ async function fetchAllFeeds(feedUrls, existingTitles = [], keywords = []) {
     existingTitles.map(t => t.toLowerCase().replace(/[^a-z0-9]/g, ''))
   );
 
-  // Fetch all feeds in parallel
-  const results = await Promise.all(feedUrls.map(url => fetchFeed(url)));
+  // Fetch all feeds in parallel (with pagination)
+  const results = await Promise.all(feedUrls.map(url => fetchFeedAllPages(url)));
 
   const allItems = [];
   const errors = [];
