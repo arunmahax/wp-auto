@@ -34,6 +34,8 @@ const updateProjectSchema = Joi.object({
   // RSS Spy settings
   rss_feeds: Joi.array().items(Joi.string().uri()).max(50),
   spy_keywords: Joi.array().items(Joi.string().max(100)).max(20),
+  // Category-to-board mapping: { "categoryId": "boardSlug" }
+  category_board_map: Joi.object().pattern(Joi.string(), Joi.string().allow('', null)).default(null),
 }).min(1).messages({
   'object.min': 'At least one field must be provided for update',
 });

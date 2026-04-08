@@ -742,6 +742,7 @@ async function publishArticle(project, article, wpImages) {
   return {
     postId: post.id,
     url: post.link,
+    categoryIds,
   };
 }
 
@@ -898,6 +899,33 @@ async function fetchPinboards(client) {
 }
 
 /**
+ * Match a board using the category-to-board mapping from project settings.
+ * If a mapping exists for the chosen WP category, use it directly.
+ * Falls back to keyword-based matchBoard() if no mapping found.
+ */
+function matchBoardByCategory(boards, recipeTitle, project, categoryIds) {
+  if (!boards || boards.length === 0) return null;
+
+  // Try category-board mapping first
+  const mapping = project.category_board_map || {};
+  if (categoryIds && categoryIds.length > 0 && Object.keys(mapping).length > 0) {
+    for (const catId of categoryIds) {
+      const boardSlug = mapping[String(catId)];
+      if (boardSlug) {
+        const board = boards.find((b) => b.slug === boardSlug);
+        if (board) {
+          console.log(`[WP Publish] Board matched via category mapping: category ${catId} → board "${board.name}"`);
+          return board;
+        }
+      }
+    }
+  }
+
+  // Fallback to keyword-based matching
+  return matchBoard(boards, recipeTitle);
+}
+
+/**
  * Match a board to the recipe by comparing board keywords to the title.
  * Falls back to the first board if no keyword match found.
  */
@@ -970,5 +998,7 @@ module.exports = {
   createTastyRecipe,
   fetchPinboards,
   matchBoard,
+  matchBoardByCategory,
+  selectCategories,
   submitPinToBoard,
 };

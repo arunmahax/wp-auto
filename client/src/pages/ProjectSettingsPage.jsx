@@ -30,6 +30,7 @@ export default function ProjectSettingsPage() {
     pin_design_mode: 'json', // 'json' or 'template'
     rss_feeds: [],
     spy_keywords: [],
+    category_board_map: {},
   });
 
   const [newFeedUrl, setNewFeedUrl] = useState('');
@@ -68,6 +69,7 @@ export default function ProjectSettingsPage() {
           pin_design_mode: templateIds.length > 0 ? 'template' : 'json',
           rss_feeds: data.rss_feeds || [],
           spy_keywords: data.spy_keywords || [],
+          category_board_map: data.category_board_map || {},
         });
         setRecipes(recipesRes.data);
         setSuggestedFeeds(suggestedRes.data.feeds || []);
@@ -779,6 +781,78 @@ export default function ProjectSettingsPage() {
           <p className="text-sm" style={{ color: 'var(--text-500)' }}>No boards fetched yet. Click "Fetch" to pull from the Pinboards plugin.</p>
         )}
       </section>
+
+      {/* Category → Board Mapping */}
+      {categories.length > 0 && boards.length > 0 && (
+        <section className="card p-6 mt-6">
+          <div className="flex justify-between items-center mb-2">
+            <div className="flex items-center gap-2">
+              <Layers className="w-4 h-4" style={{ color: 'var(--primary-400)' }} />
+              <h2 className="text-lg font-semibold" style={{ color: 'var(--text-100)' }}>Category → Board Mapping</h2>
+            </div>
+            <button
+              onClick={async () => {
+                try {
+                  setSaving(true);
+                  const { data } = await client.put(`/projects/${id}`, { category_board_map: form.category_board_map });
+                  setProject(data);
+                  setSuccess('Mapping saved');
+                } catch (err) {
+                  setError(err.response?.data?.error || 'Failed to save mapping');
+                } finally {
+                  setSaving(false);
+                }
+              }}
+              disabled={saving}
+              className="btn btn-primary text-sm"
+            >
+              {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</> : <><CheckCircle2 className="w-4 h-4" /> Save Mapping</>}
+            </button>
+          </div>
+          <p className="text-xs mb-4" style={{ color: 'var(--text-500)' }}>
+            Assign each WordPress category to a Pinterest board. When a post is published to a category, the pin will be sent to the mapped board automatically.
+          </p>
+          <div className="space-y-2">
+            {categories.map((cat) => (
+              <div key={cat.id} className="flex items-center gap-3 py-2 px-3 rounded-lg" style={{ background: 'var(--bg-700)' }}>
+                <span className="text-sm font-medium flex-shrink-0 w-48 truncate" style={{ color: 'var(--text-100)' }} title={cat.name}>
+                  {cat.name}
+                </span>
+                <span className="text-xs" style={{ color: 'var(--text-500)' }}>→</span>
+                <select
+                  value={form.category_board_map[String(cat.id)] || ''}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setForm((prev) => {
+                      const newMap = { ...prev.category_board_map };
+                      if (val) {
+                        newMap[String(cat.id)] = val;
+                      } else {
+                        delete newMap[String(cat.id)];
+                      }
+                      return { ...prev, category_board_map: newMap };
+                    });
+                  }}
+                  className="input flex-1"
+                >
+                  <option value="">— No board (keyword fallback) —</option>
+                  {boards.map((b) => (
+                    <option key={b.slug} value={b.slug}>{b.name}</option>
+                  ))}
+                </select>
+              </div>
+            ))}
+          </div>
+          {Object.keys(form.category_board_map).length > 0 && (
+            <div className="mt-3 pt-3 border-t" style={{ borderColor: 'var(--bg-600)' }}>
+              <p className="text-xs" style={{ color: 'var(--text-500)' }}>
+                {Object.keys(form.category_board_map).length} of {categories.length} categories mapped.
+                Unmapped categories will use keyword-based board matching.
+              </p>
+            </div>
+          )}
+        </section>
+      )}
 
       {/* Authors */}
       <section className="card p-6 mt-6">

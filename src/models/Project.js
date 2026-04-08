@@ -113,6 +113,19 @@ const Project = sequelize.define('Project', {
       this.setDataValue('template_ids', val && val.length ? JSON.stringify(val) : null);
     },
   },
+  // Maps WP category IDs to Pinterest board slugs: { "<categoryId>": "<boardSlug>" }
+  category_board_map: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+    get() {
+      const raw = this.getDataValue('category_board_map');
+      if (!raw) return {};
+      try { return JSON.parse(raw); } catch { return {}; }
+    },
+    set(val) {
+      this.setDataValue('category_board_map', val && Object.keys(val).length ? JSON.stringify(val) : null);
+    },
+  },
 }, {
   tableName: 'projects',
 });

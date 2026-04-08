@@ -392,6 +392,7 @@ async function processNextRecipe(projectId, userId, jobId = null) {
     let postId = null;
     let publishedUrl = null;
     let article = null;
+    let publishedCategoryIds = [];
 
     if (articleResult) {
       console.log(`[Scheduler] Step 4: Publishing to WordPress (post → Tasty Recipe → enhance → SEO)...`);
@@ -405,6 +406,7 @@ async function processNextRecipe(projectId, userId, jobId = null) {
       const pubResult = await wpPublishService.publishArticle(project, article, wpImages);
       postId = pubResult.postId;
       publishedUrl = pubResult.url;
+      publishedCategoryIds = pubResult.categoryIds || [];
       await recipe.update({
         wp_post_id: postId,
         published_url: publishedUrl,
@@ -512,9 +514,9 @@ async function processNextRecipe(projectId, userId, jobId = null) {
         await recipe.update({ wp_pin_image: pinMedia.url });
         console.log(`[Scheduler] Step 6: Pin uploaded to WordPress: ${pinMedia.url}`);
 
-        // Fetch boards from Pinboards plugin and match by keywords
+        // Fetch boards from Pinboards plugin and match by category mapping (or keywords)
         const boards = await wpPublishService.fetchPinboards(wpClient);
-        const board = wpPublishService.matchBoard(boards, recipe.title);
+        const board = wpPublishService.matchBoardByCategory(boards, recipe.title, project, publishedCategoryIds);
 
         if (!board) {
           console.log('[Scheduler] Step 6: No matching board found — skipping');
