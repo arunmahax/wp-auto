@@ -1157,7 +1157,7 @@ function SpyTab({ spyItems, spyLoading, selectedSpyItems, toggleSpyItem, selectA
                 <div className="aspect-video overflow-hidden" style={{ background: 'var(--bg-700)' }}>
                   {item.image ? (
                     <img
-                      src={item.image}
+                      src={`/api/image-proxy?url=${encodeURIComponent(item.image)}`}
                       alt={item.title}
                       className="w-full h-full object-cover"
                       onError={(e) => { e.target.style.display = 'none'; }}

@@ -97,7 +97,7 @@ async function fetchFeed(feedUrl) {
       pubDate: item.pubDate ? new Date(item.pubDate) : new Date(),
       domain: domain || getDomain(item.link) || 'unknown',
       feedTitle: feed.title,
-    })).filter(item => item.image); // Only items with images
+    })).filter(item => item.title); // Keep all items with titles (image optional)
 
     return { success: true, items, feedUrl };
   } catch (error) {

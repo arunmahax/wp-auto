@@ -279,6 +279,7 @@ router.post('/:id/spy/add', async (req, res, next) => {
         source: 'competitor',
         spy_source_url: item.link || null,
         spy_source_domain: item.domain || null,
+        image1: item.image || null,
         featured_image: item.image || null,
         status: 'new',
       });
