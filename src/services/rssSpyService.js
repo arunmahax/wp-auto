@@ -95,6 +95,7 @@ async function fetchFeed(feedUrl) {
       link: item.link,
       image: extractImage(item),
       pubDate: item.pubDate ? new Date(item.pubDate) : new Date(),
+      categories: item.categories || [],
       domain: domain || getDomain(item.link) || 'unknown',
       feedTitle: feed.title,
     })).filter(item => item.title); // Keep all items with titles (image optional)

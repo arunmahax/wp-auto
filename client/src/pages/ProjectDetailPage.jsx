@@ -1174,6 +1174,28 @@ function SpyTab({ spyItems, spyLoading, selectedSpyItems, toggleSpyItem, selectA
                   <h4 className="font-medium text-sm line-clamp-2 mb-2" style={{ color: 'var(--text-100)' }}>
                     {item.title}
                   </h4>
+                  {item.pubDate && (
+                    <div className="text-xs mb-1.5 flex items-center gap-1" style={{ color: 'var(--text-500)' }}>
+                      <Calendar className="w-3 h-3" />
+                      {new Date(item.pubDate).toLocaleDateString()} {new Date(item.pubDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                  )}
+                  {item.categories && item.categories.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mb-2">
+                      {item.categories.slice(0, 3).map((cat, ci) => (
+                        <span
+                          key={ci}
+                          className="text-xs px-1.5 py-0.5 rounded"
+                          style={{ background: 'rgba(5, 150, 105, 0.15)', color: 'var(--success-400)' }}
+                        >
+                          {cat}
+                        </span>
+                      ))}
+                      {item.categories.length > 3 && (
+                        <span className="text-xs" style={{ color: 'var(--text-500)' }}>+{item.categories.length - 3}</span>
+                      )}
+                    </div>
+                  )}
                   <div className="flex items-center justify-between">
                     <span 
                       className="text-xs px-2 py-0.5 rounded-full"
