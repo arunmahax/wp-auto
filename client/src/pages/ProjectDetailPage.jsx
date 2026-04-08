@@ -270,15 +270,23 @@ export default function ProjectDetailPage() {
   const fetchSpyData = async (feedIndices) => {
     setSpyLoading(true);
     setError('');
-    setSpyItems([]);
     setSelectedSpyItems(new Set());
     setSpyStats(null);
     try {
       const params = feedIndices && feedIndices !== 'all' ? `?feeds=${feedIndices}` : '';
       const { data } = await client.get(`/projects/${id}/spy/fetch${params}`);
-      setSpyItems(data.items || []);
+      const newItems = data.items || [];
+      // Merge with existing items, dedup by title
+      setSpyItems(prev => {
+        const existing = new Map(prev.map(item => [item.title.toLowerCase().replace(/[^a-z0-9]/g, ''), item]));
+        for (const item of newItems) {
+          const key = item.title.toLowerCase().replace(/[^a-z0-9]/g, '');
+          if (!existing.has(key)) existing.set(key, item);
+        }
+        return [...existing.values()];
+      });
       setSpyStats(data.stats || null);
-      if (data.items?.length === 0 && data.stats) {
+      if (newItems.length === 0 && data.stats) {
         const s = data.stats;
         if (s.skippedKeyword > 0 && s.totalFromFeeds > 0) {
           setError(`Found ${s.totalFromFeeds} recipes but ${s.skippedKeyword} filtered by keywords. Try removing keyword filters.`);
@@ -287,7 +295,7 @@ export default function ProjectDetailPage() {
         } else if (s.feedsFailed > 0 && s.feedsSucceeded === 0) {
           setError(`All ${s.feedsFailed} feeds failed to fetch. Check feed URLs.`);
         } else {
-          setError('No new recipes found.');
+          setError('No new recipes found from this feed.');
         }
       }
     } catch (err) {
@@ -1051,39 +1059,31 @@ function RecipeModal({ recipe, onClose, onRun, runningRecipeId }) {
 function SpyTab({ spyItems, spyLoading, selectedSpyItems, setSelectedSpyItems, toggleSpyItem, fetchSpyData, addSpyToQueue, addingToQueue, project }) {
   const hasFeeds = project?.rss_feeds?.length > 0;
   const feeds = project?.rss_feeds || [];
-  const [selectedFeeds, setSelectedFeeds] = useState(new Set(feeds.map((_, i) => i))); // all selected by default
+  const [activeFeed, setActiveFeed] = useState('all');
   const [timeFilter, setTimeFilter] = useState('all');
   const [sortBy, setSortBy] = useState('newest');
 
-  // Keep selectedFeeds in sync when project feeds change
-  useEffect(() => {
-    setSelectedFeeds(new Set(feeds.map((_, i) => i)));
-  }, [feeds.length]);
-
-  const toggleFeed = (idx) => {
-    setSelectedFeeds(prev => {
-      const next = new Set(prev);
-      if (next.has(idx)) next.delete(idx);
-      else next.add(idx);
-      return next;
-    });
+  const getFeedDomain = (url) => {
+    try { return new URL(url).hostname.replace('www.', ''); } catch { return url; }
   };
 
   const handleFetch = () => {
-    if (selectedFeeds.size === feeds.length) {
+    if (activeFeed === 'all') {
       fetchSpyData('all');
     } else {
-      fetchSpyData([...selectedFeeds].sort((a, b) => a - b).join(','));
+      fetchSpyData(String(activeFeed));
     }
-  };
-
-  const getFeedLabel = (url) => {
-    try { return new URL(url).hostname.replace('www.', ''); } catch { return url; }
   };
 
   // Filter and sort items, preserving original indices for selection
   const filteredItems = useMemo(() => {
     let items = spyItems.map((item, idx) => ({ ...item, _origIdx: idx }));
+
+    // Feed filter
+    if (activeFeed !== 'all' && feeds[activeFeed]) {
+      const domain = getFeedDomain(feeds[activeFeed]);
+      items = items.filter(item => item.domain === domain);
+    }
 
     // Time filter
     if (timeFilter !== 'all') {
@@ -1104,7 +1104,7 @@ function SpyTab({ spyItems, spyLoading, selectedSpyItems, setSelectedSpyItems, t
     else if (sortBy === 'az') items.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
 
     return items;
-  }, [spyItems, timeFilter, sortBy]);
+  }, [spyItems, activeFeed, feeds, timeFilter, sortBy]);
 
   // Select/deselect all visible (filtered) items
   const handleSelectAll = () => {
@@ -1149,7 +1149,7 @@ function SpyTab({ spyItems, spyLoading, selectedSpyItems, setSelectedSpyItems, t
         <div className="flex items-center gap-3">
           <button
             onClick={handleFetch}
-            disabled={spyLoading || !hasFeeds || selectedFeeds.size === 0}
+            disabled={spyLoading || !hasFeeds}
             className="btn-primary flex items-center gap-2"
           >
             {spyLoading ? (
@@ -1194,16 +1194,13 @@ function SpyTab({ spyItems, spyLoading, selectedSpyItems, setSelectedSpyItems, t
       {feeds.length > 1 && (
         <div className="flex flex-wrap items-center gap-2 mb-4">
           <Rss className="w-4 h-4" style={{ color: 'var(--text-500)' }} />
-          <span className="text-xs font-medium uppercase tracking-wider mr-1" style={{ color: 'var(--text-500)' }}>Feeds</span>
+          <span className="text-xs font-medium uppercase tracking-wider mr-1" style={{ color: 'var(--text-500)' }}>Feed</span>
           <button
-            onClick={() => {
-              if (selectedFeeds.size === feeds.length) setSelectedFeeds(new Set());
-              else setSelectedFeeds(new Set(feeds.map((_, i) => i)));
-            }}
+            onClick={() => setActiveFeed('all')}
             className="px-2.5 py-1 text-xs font-semibold rounded-lg cursor-pointer transition-all"
             style={{
-              background: selectedFeeds.size === feeds.length ? 'linear-gradient(135deg, var(--primary-500), var(--accent-500))' : 'var(--bg-700)',
-              color: selectedFeeds.size === feeds.length ? 'white' : 'var(--text-300)',
+              background: activeFeed === 'all' ? 'linear-gradient(135deg, var(--primary-500), var(--accent-500))' : 'var(--bg-700)',
+              color: activeFeed === 'all' ? 'white' : 'var(--text-300)',
               border: 'none'
             }}
           >
@@ -1212,16 +1209,16 @@ function SpyTab({ spyItems, spyLoading, selectedSpyItems, setSelectedSpyItems, t
           {feeds.map((url, i) => (
             <button
               key={i}
-              onClick={() => toggleFeed(i)}
+              onClick={() => setActiveFeed(i)}
               className="px-2.5 py-1 text-xs font-semibold rounded-lg cursor-pointer transition-all"
               style={{
-                background: selectedFeeds.has(i) ? 'rgba(5, 150, 105, 0.25)' : 'var(--bg-700)',
-                color: selectedFeeds.has(i) ? 'var(--success-400)' : 'var(--text-300)',
+                background: activeFeed === i ? 'rgba(5, 150, 105, 0.25)' : 'var(--bg-700)',
+                color: activeFeed === i ? 'var(--success-400)' : 'var(--text-300)',
                 border: 'none'
               }}
               title={url}
             >
-              {getFeedLabel(url)}
+              {getFeedDomain(url)}
             </button>
           ))}
         </div>
