@@ -127,4 +127,27 @@ async function remove(projectId, jobId, userId) {
   return { message: 'Job deleted successfully' };
 }
 
-module.exports = { create, listByProject, getById, retry, remove };
+async function cancel(projectId, jobId, userId) {
+  await verifyProjectOwnership(projectId, userId);
+
+  const job = await Job.findOne({
+    where: { id: jobId, project_id: projectId },
+  });
+
+  if (!job) {
+    const err = new Error('Job not found');
+    err.status = 404;
+    throw err;
+  }
+
+  if (job.status !== 'pending' && job.status !== 'running') {
+    const err = new Error(`Cannot cancel a ${job.status} job`);
+    err.status = 400;
+    throw err;
+  }
+
+  const result = await scheduler.cancelJob(jobId);
+  return result;
+}
+
+module.exports = { create, listByProject, getById, retry, remove, cancel };

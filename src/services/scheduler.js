@@ -24,6 +24,9 @@ const getPinGeneratorService = () => {
 // Active cron jobs keyed by project ID
 const activeJobs = new Map();
 
+// Track cancelled job IDs so running pipelines can check and abort
+const cancelledJobs = new Set();
+
 // Failed recipe recovery job
 let failedRecoveryJob = null;
 
@@ -268,6 +271,21 @@ async function processNextRecipe(projectId, userId, jobId = null) {
     if (jobId) await Job.update(fields, { where: { id: jobId } });
   };
 
+  // Helper to check if this job was cancelled
+  const checkCancelled = async () => {
+    if (jobId && cancelledJobs.has(jobId)) {
+      cancelledJobs.delete(jobId);
+      console.log(`[Scheduler] Job ${jobId} was cancelled — aborting pipeline`);
+      await recipe.update({ status: 'new', pipeline_step: null, error_message: 'Cancelled by user' });
+      await Job.update(
+        { status: 'cancelled', pipeline_step: 'done', error_message: 'Cancelled by user' },
+        { where: { id: jobId } },
+      );
+      return true;
+    }
+    return false;
+  };
+
   // Recipe already claimed as 'processing' inside the transaction above
   runningCount++;
   console.log(`[Scheduler] Processing recipe: ${recipe.title} (${runningCount}/${MAX_CONCURRENT} slots used)`);
@@ -337,6 +355,8 @@ async function processNextRecipe(projectId, userId, jobId = null) {
       console.log(`[Scheduler] Step 1 done: ${mjImages.length} images generated`);
     }
 
+    if (await checkCancelled()) return null;
+
     // ─── Step 2: Upload images to WordPress ─────────────────────────────
     await recipe.update({ pipeline_step: 'image_upload' });
     await updateJob({ pipeline_step: 'image_upload' });
@@ -357,6 +377,8 @@ async function processNextRecipe(projectId, userId, jobId = null) {
       });
       console.log(`[Scheduler] Step 2 done: images uploaded to WP`);
     }
+
+    if (await checkCancelled()) return null;
 
     // ─── Step 3: Generate article via Content Writer ────────────────────
     await recipe.update({ pipeline_step: 'article_generation' });
@@ -384,6 +406,8 @@ async function processNextRecipe(projectId, userId, jobId = null) {
       });
       console.log(`[Scheduler] Step 3 done: article generated (job ${articleJobId})`);
     }
+
+    if (await checkCancelled()) return null;
 
     // ─── Step 4: Publish to WordPress ───────────────────────────────────
     // (Internally: empty post → Tasty Recipe → enhance content → update → SEO)
@@ -413,6 +437,8 @@ async function processNextRecipe(projectId, userId, jobId = null) {
       });
       console.log(`[Scheduler] Step 4 done: published at ${publishedUrl}`);
     }
+
+    if (await checkCancelled()) return null;
 
     // ─── Step 5: Generate Pinterest pin ─────────────────────────────────
     await recipe.update({ pipeline_step: 'pin_generation' });
@@ -485,6 +511,8 @@ async function processNextRecipe(projectId, userId, jobId = null) {
         console.error(`[Scheduler] Step 5 failed (non-fatal):`, pinErr.message);
       }
     }
+
+    if (await checkCancelled()) return null;
 
     // ─── Step 6: Submit pin to WordPress pinboards ──────────────────────
     if ((pinImageUrl || pinImageBuffer) && postId) {
@@ -619,4 +647,29 @@ function safeJson(str) {
   try { return JSON.parse(str); } catch { return null; }
 }
 
-module.exports = { registerProject, unregisterProject, startAll, stopAll, processNextRecipe, recoverOrphans, recoverFailedRecipes };
+/**
+ * Cancel a running or pending job.
+ * If the pipeline is mid-flight, it will stop at the next step boundary.
+ */
+async function cancelJob(jobId) {
+  const job = await Job.findByPk(jobId);
+  if (!job) return null;
+
+  if (job.status === 'pending') {
+    // Not yet started — just mark cancelled
+    await job.update({ status: 'cancelled', error_message: 'Cancelled by user', pipeline_step: 'done' });
+    return job;
+  }
+
+  if (job.status === 'running') {
+    // In-flight — signal the pipeline to stop at the next step
+    cancelledJobs.add(jobId);
+    // Optimistically mark so the UI updates immediately
+    await job.update({ status: 'cancelled', error_message: 'Cancelling...', pipeline_step: job.pipeline_step });
+    return job;
+  }
+
+  return job; // already completed/failed/cancelled — no-op
+}
+
+module.exports = { registerProject, unregisterProject, startAll, stopAll, processNextRecipe, recoverOrphans, recoverFailedRecipes, cancelJob };

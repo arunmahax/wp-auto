@@ -45,4 +45,13 @@ async function remove(req, res, next) {
   }
 }
 
-module.exports = { create, list, getById, retry, remove };
+async function cancel(req, res, next) {
+  try {
+    const job = await jobService.cancel(req.params.projectId, req.params.jobId, req.user.id);
+    res.json(job);
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { create, list, getById, retry, remove, cancel };

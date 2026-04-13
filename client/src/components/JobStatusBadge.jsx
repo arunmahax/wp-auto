@@ -1,4 +1,4 @@
-import { Loader2, CheckCircle2, XCircle, Clock } from 'lucide-react';
+import { Loader2, CheckCircle2, XCircle, Clock, Ban } from 'lucide-react';
 
 const statusConfig = {
   pending: { 
@@ -28,6 +28,13 @@ const statusConfig = {
     text: 'var(--error-400)', 
     label: 'Failed',
     icon: XCircle,
+    dot: false
+  },
+  cancelled: { 
+    bg: 'rgba(100, 116, 139, 0.2)', 
+    text: 'var(--text-300)', 
+    label: 'Cancelled',
+    icon: Ban,
     dot: false
   },
 };

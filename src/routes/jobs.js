@@ -12,6 +12,7 @@ router.post('/:projectId/jobs', validate(createJobSchema), jobController.create)
 router.get('/:projectId/jobs', jobController.list);
 router.get('/:projectId/jobs/:jobId', jobController.getById);
 router.post('/:projectId/jobs/:jobId/retry', jobController.retry);
+router.post('/:projectId/jobs/:jobId/cancel', jobController.cancel);
 router.delete('/:projectId/jobs/:jobId', jobController.remove);
 
 module.exports = router;

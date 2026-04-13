@@ -24,7 +24,7 @@ const Job = sequelize.define('Job', {
     allowNull: false,
     defaultValue: 'pending',
     validate: {
-      isIn: [['pending', 'running', 'completed', 'failed']],
+      isIn: [['pending', 'running', 'completed', 'failed', 'cancelled']],
     },
   },
   recipe_id: {

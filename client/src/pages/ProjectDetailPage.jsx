@@ -150,7 +150,9 @@ export default function ProjectDetailPage() {
   // Delete state
   const [deleteProject, setDeleteProject] = useState(false);
   const [deleteJobTarget, setDeleteJobTarget] = useState(null);
+  const [deleteRecipeTarget, setDeleteRecipeTarget] = useState(null);
   const [retryingId, setRetryingId] = useState(null);
+  const [cancellingId, setCancellingId] = useState(null);
 
   // Spy state
   const [spyItems, setSpyItems] = useState([]);
@@ -264,6 +266,30 @@ export default function ProjectDetailPage() {
     } finally {
       setRetryingId(null);
     }
+  };
+
+  const handleCancelJob = async (job) => {
+    setCancellingId(job.id);
+    setError('');
+    try {
+      await client.post(`/projects/${id}/jobs/${job.id}/cancel`);
+      await fetchData();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Cancel failed');
+    } finally {
+      setCancellingId(null);
+    }
+  };
+
+  const handleDeleteRecipe = async () => {
+    if (!deleteRecipeTarget) return;
+    try {
+      await client.delete(`/projects/${id}/recipes/${deleteRecipeTarget.id}`);
+      setRecipes((prev) => prev.filter((r) => r.id !== deleteRecipeTarget.id));
+    } catch {
+      setError('Failed to delete recipe');
+    }
+    setDeleteRecipeTarget(null);
   };
 
   // Spy handlers
@@ -602,6 +628,7 @@ export default function ProjectDetailPage() {
                 onSelectRecipe={setSelectedRecipe}
                 handleRunRecipe={handleRunRecipe}
                 runningRecipeId={runningRecipeId}
+                onDeleteRecipe={setDeleteRecipeTarget}
               />
             </>
           )}
@@ -614,6 +641,7 @@ export default function ProjectDetailPage() {
               runningRecipeId={runningRecipeId}
               handleRunRecipe={handleRunRecipe}
               onSelectRecipe={setSelectedRecipe}
+              onDeleteRecipe={setDeleteRecipeTarget}
             />
           )}
 
@@ -638,7 +666,9 @@ export default function ProjectDetailPage() {
               expandedJob={expandedJob}
               setExpandedJob={setExpandedJob}
               handleRetryJob={handleRetryJob}
+              handleCancelJob={handleCancelJob}
               retryingId={retryingId}
+              cancellingId={cancellingId}
               setDeleteJobTarget={setDeleteJobTarget}
               fetchData={fetchData}
             />
@@ -671,12 +701,19 @@ export default function ProjectDetailPage() {
         onConfirm={handleDeleteJob}
         onCancel={() => setDeleteJobTarget(null)}
       />
+      <ConfirmDialog
+        open={!!deleteRecipeTarget}
+        title="Delete Recipe"
+        message={`Delete "${deleteRecipeTarget?.title}"? This will also remove linked jobs.`}
+        onConfirm={handleDeleteRecipe}
+        onCancel={() => setDeleteRecipeTarget(null)}
+      />
     </div>
   );
 }
 
 /* ── Kanban View ── */
-function KanbanView({ columns, onSelectRecipe, handleRunRecipe, runningRecipeId }) {
+function KanbanView({ columns, onSelectRecipe, handleRunRecipe, runningRecipeId, onDeleteRecipe }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
       {columns.map((column) => {
@@ -706,6 +743,7 @@ function KanbanView({ columns, onSelectRecipe, handleRunRecipe, runningRecipeId 
                     onClick={() => onSelectRecipe(recipe)}
                     onRun={() => handleRunRecipe(recipe.id)}
                     isRunning={runningRecipeId === recipe.id}
+                    onDelete={() => onDeleteRecipe(recipe)}
                   />
                 ))
               )}
@@ -717,8 +755,9 @@ function KanbanView({ columns, onSelectRecipe, handleRunRecipe, runningRecipeId 
   );
 }
 
-function KanbanCard({ recipe, onClick, onRun, isRunning }) {
+function KanbanCard({ recipe, onClick, onRun, isRunning, onDelete }) {
   const canRun = recipe.status === 'new' || recipe.status === 'failed';
+  const canDelete = recipe.status !== 'processing';
   const pinImage = recipe.wp_pin_image || recipe.pin_image_url || recipe.wp_featured_image;
   
   return (
@@ -768,6 +807,19 @@ function KanbanCard({ recipe, onClick, onRun, isRunning }) {
           ) : (
             <><Play className="w-3 h-3" /> Run</>
           )}
+        </button>
+      )}
+      {canDelete && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onDelete(); }}
+          className="btn btn-sm mt-1 w-full"
+          style={{ 
+            background: 'rgba(220, 38, 38, 0.1)',
+            color: 'var(--error-400)',
+            border: 'none'
+          }}
+        >
+          <Trash2 className="w-3 h-3" /> Delete
         </button>
       )}
     </div>
@@ -1416,7 +1468,7 @@ function SpyTab({ spyItems, spyLoading, selectedSpyItems, setSelectedSpyItems, t
 }
 
 /* ── Recipes Tab ── */
-function RecipesTab({ recipes, statusFilter, setStatusFilter, runningRecipeId, handleRunRecipe, onSelectRecipe }) {
+function RecipesTab({ recipes, statusFilter, setStatusFilter, runningRecipeId, handleRunRecipe, onSelectRecipe, onDeleteRecipe }) {
   return (
     <div>
       {/* Filter bar */}
@@ -1469,6 +1521,7 @@ function RecipesTab({ recipes, statusFilter, setStatusFilter, runningRecipeId, h
                   runningRecipeId={runningRecipeId}
                   handleRunRecipe={handleRunRecipe}
                   onClick={() => onSelectRecipe(recipe)}
+                  onDelete={() => onDeleteRecipe(recipe)}
                   isLast={idx === recipes.length - 1}
                 />
               ))}
@@ -1480,8 +1533,9 @@ function RecipesTab({ recipes, statusFilter, setStatusFilter, runningRecipeId, h
   );
 }
 
-function RecipeRow({ recipe, runningRecipeId, handleRunRecipe, onClick, isLast }) {
+function RecipeRow({ recipe, runningRecipeId, handleRunRecipe, onClick, onDelete, isLast }) {
   const canRun = recipe.status === 'new' || recipe.status === 'failed';
+  const canDelete = recipe.status !== 'processing';
   const isRunning = runningRecipeId === recipe.id;
 
   return (
@@ -1557,6 +1611,15 @@ function RecipeRow({ recipe, runningRecipeId, handleRunRecipe, onClick, isLast }
               View
             </a>
           )}
+          {canDelete && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onDelete(); }}
+              className="btn btn-ghost p-1"
+              style={{ color: 'var(--text-500)' }}
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          )}
         </div>
       </td>
     </tr>
@@ -1564,7 +1627,7 @@ function RecipeRow({ recipe, runningRecipeId, handleRunRecipe, onClick, isLast }
 }
 
 /* ── Activity Tab (Job History) ── */
-function ActivityTab({ jobs, projectId, expandedJob, setExpandedJob, handleRetryJob, retryingId, setDeleteJobTarget, fetchData }) {
+function ActivityTab({ jobs, projectId, expandedJob, setExpandedJob, handleRetryJob, handleCancelJob, retryingId, cancellingId, setDeleteJobTarget, fetchData }) {
   if (jobs.length === 0) {
     return (
       <div className="text-center py-16">
@@ -1616,6 +1679,24 @@ function ActivityTab({ jobs, projectId, expandedJob, setExpandedJob, handleRetry
                     <Loader2 className="w-3 h-3 animate-spin" />
                   ) : (
                     <><RotateCcw className="w-3 h-3" /> Retry</>
+                  )}
+                </button>
+              )}
+              {(job.status === 'pending' || job.status === 'running') && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleCancelJob(job); }}
+                  disabled={cancellingId === job.id}
+                  className="btn btn-sm"
+                  style={{ 
+                    background: 'rgba(220, 38, 38, 0.15)',
+                    color: 'var(--error-400)',
+                    border: 'none'
+                  }}
+                >
+                  {cancellingId === job.id ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : (
+                    <><X className="w-3 h-3" /> Cancel</>
                   )}
                 </button>
               )}

@@ -26,6 +26,68 @@ router.post('/:id/fetch-authors', wpFetchController.fetchAuthors);
 router.post('/:id/sync-sheet', sheetController.syncSheet);
 router.get('/:id/recipes', sheetController.listRecipes);
 
+// Delete a single recipe
+router.delete('/:id/recipes/:recipeId', async (req, res, next) => {
+  try {
+    const project = await Project.findByPk(req.params.id);
+    if (!project || project.user_id !== req.user.id) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+
+    const recipe = await Recipe.findOne({
+      where: { id: req.params.recipeId, project_id: req.params.id },
+    });
+    if (!recipe) return res.status(404).json({ error: 'Recipe not found' });
+
+    if (recipe.status === 'processing') {
+      return res.status(400).json({ error: 'Cannot delete a recipe that is currently processing' });
+    }
+
+    // Also remove linked jobs
+    await Job.destroy({ where: { recipe_id: recipe.id } });
+    await recipe.destroy();
+
+    res.json({ message: 'Recipe deleted' });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Bulk delete recipes by status or source
+router.post('/:id/recipes/bulk-delete', async (req, res, next) => {
+  try {
+    const project = await Project.findByPk(req.params.id);
+    if (!project || project.user_id !== req.user.id) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+
+    const { recipeIds, source, status } = req.body;
+    const where = { project_id: req.params.id, status: { [require('sequelize').Op.ne]: 'processing' } };
+
+    if (recipeIds && Array.isArray(recipeIds)) {
+      where.id = { [require('sequelize').Op.in]: recipeIds };
+    } else if (source) {
+      where.source = source;
+    } else if (status) {
+      where.status = status;
+    } else {
+      return res.status(400).json({ error: 'Provide recipeIds, source, or status' });
+    }
+
+    const recipes = await Recipe.findAll({ where, attributes: ['id'] });
+    const ids = recipes.map(r => r.id);
+
+    if (ids.length > 0) {
+      await Job.destroy({ where: { recipe_id: { [require('sequelize').Op.in]: ids } } });
+      await Recipe.destroy({ where: { id: { [require('sequelize').Op.in]: ids } } });
+    }
+
+    res.json({ message: `Deleted ${ids.length} recipes`, count: ids.length });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // Project stats: recipe counts by status + automation info
 router.get('/:id/stats', async (req, res, next) => {
   try {
